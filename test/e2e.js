@@ -18,6 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
 const PORT = Number(process.env.PORT || 8099);
 const HEADED = !!process.env.HEADED;
+const CHROMIUM_PATH = process.env.CHROMIUM_PATH;
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml' };
 
 const server = http.createServer((req, res) => {
@@ -30,8 +31,11 @@ const server = http.createServer((req, res) => {
 });
 
 (async () => {
-  await new Promise(r => server.listen(8099, r));
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  await new Promise(r => server.listen(PORT, r));
+  const browser = await chromium.launch({
+    ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
+    headless: !HEADED,
+  });
   const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
 
   const errors = [];
