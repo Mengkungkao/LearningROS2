@@ -173,13 +173,20 @@
 
     init() {
       this.area = U.$('#editor-area');
+      this.hl = U.$('#editor-hl');
+      this.insight = U.$('#editor-insight');
+      this.insightList = U.$('#insight-list');
       this.title = U.$('#editor-title');
       this.status = U.$('#editor-status');
       this.saveBtn = U.$('#editor-save');
       this.lines = U.$('#editor-lines');
 
-      this.area.addEventListener('input', () => { this.setDirty(true); this.renderLines(); });
-      this.area.addEventListener('scroll', () => { this.lines.scrollTop = this.area.scrollTop; });
+      this.area.addEventListener('input', () => { this.setDirty(true); this.renderLines(); this.repaint(); });
+      this.area.addEventListener('scroll', () => {
+        this.lines.scrollTop = this.area.scrollTop;
+        this.hl.scrollTop = this.area.scrollTop;
+        this.hl.scrollLeft = this.area.scrollLeft;
+      });
       this.area.addEventListener('keydown', (e) => {
         if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.save(); }
         if (e.key === 'Tab') {
@@ -189,6 +196,7 @@
           this.area.selectionStart = this.area.selectionEnd = s + 4;
           this.setDirty(true);
           this.renderLines();
+          this.repaint();
         }
       });
       this.saveBtn.addEventListener('click', () => this.save());
@@ -208,6 +216,7 @@
         this.status.textContent = 'Open a file from the Files panel, or type:  nano my_file.py';
         this.setDirty(false);
         this.renderLines();
+        this.repaint();
         return;
       }
       this.area.disabled = false;
@@ -215,6 +224,7 @@
       this.title.textContent = VFS.pretty(path);
       this.setDirty(false);
       this.renderLines();
+      this.repaint();
       this.status.textContent = 'Ctrl+S or the Save button writes it to disk.';
     },
 
@@ -223,7 +233,31 @@
       this.area.value = text;
       this.setDirty(true);
       this.renderLines();
+      this.repaint();
       this.area.focus();
+    },
+
+    /** Repaint the colour layer, and say what this code will do. */
+    repaint() {
+      const src = this.area.value;
+      /* the trailing newline keeps the last line's height stable */
+      this.hl.innerHTML = this.path ? global.Highlight.forPath(this.path, src) + '\n' : '';
+
+      const isPy = this.path && /\.py$/.test(this.path);
+      this.insight.classList.toggle('on', !!isPy && src.trim().length > 0);
+      if (!isPy || !src.trim()) return;
+
+      let items = [];
+      try { items = global.Analyze.describe(global.Analyze.python(src)); }
+      catch (e) { items = [{ icon: '⚠️', text: 'I could not read this file.', cls: 'warn' }]; }
+
+      this.insightList.innerHTML = '';
+      items.forEach((it) => {
+        this.insightList.appendChild(el('li', { class: it.cls || '' }, [
+          el('span', { class: 'iicon', text: it.icon }),
+          el('span', { class: 'itext', html: md(it.text) })
+        ]));
+      });
     },
 
     setDirty(d) {

@@ -120,8 +120,15 @@
         </div>
         <div id="editor-wrap">
           <pre id="editor-lines"></pre>
-          <textarea id="editor-area" spellcheck="false" autocomplete="off"
-                    autocapitalize="off" autocorrect="off" aria-label="code editor"></textarea>
+          <div id="editor-code">
+            <pre id="editor-hl" aria-hidden="true"></pre>
+            <textarea id="editor-area" spellcheck="false" autocomplete="off"
+                      autocapitalize="off" autocorrect="off" aria-label="code editor"></textarea>
+          </div>
+        </div>
+        <div id="editor-insight">
+          <div class="ihead">When you run this, your node will…</div>
+          <ul id="insight-list"></ul>
         </div>
         <div id="editor-status"></div>
       </div>
@@ -168,6 +175,7 @@
 <script src="js/rosgraph.js"></script>
 <script src="js/programs.js"></script>
 <script src="js/analyze.js"></script>
+<script src="js/highlight.js"></script>
 <script src="js/shell.js"></script>
 <script src="js/ros2cli.js"></script>
 <script src="js/workspace.js"></script>

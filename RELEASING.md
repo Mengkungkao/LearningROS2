@@ -36,4 +36,5 @@ git push origin --tags
 
 | Version | Commit | Summary |
 |---|---|---|
+| v1.1.0 | `2e8fbbb` | Syntax highlighting and a live read of your code |
 | v1.0.0 | `e82ee11` | First complete course: 24 lessons, zero to custom message types |

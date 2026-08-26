@@ -10,6 +10,37 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.1.0] — 2026-08-26  ·  commit `2e8fbbb`
+
+Writing code in the editor now teaches you something while you type it.
+
+### Added
+- **Syntax highlighting** in the editor for Python, XML and YAML/`.msg`
+  (`js/highlight.js`). A coloured layer sits under a transparent textarea, so
+  editing behaves exactly as before. ROS-specific names — `create_publisher`,
+  `create_timer`, `declare_parameter` and friends — get their own colour, so
+  the lines that matter stand out to a beginner
+- **"When you run this, your node will…"** — a live readout under the editor
+  showing what the simulator understands your file to do: its node name, what
+  it publishes and how often ("every 0.25s (4 times a second)"), what it
+  listens to, which services it answers, and its parameters. It updates as you
+  type, so changing `'chatter'` to `'robot_news'` is visible before you build
+- Warnings appear in the same list — a missing `import rclpy`, a missing node
+  name, or a publisher with no timer to fire it. This also makes the analyser's
+  limits honest: if it does not appear in that list, it will not happen
+
+### Changed
+- `Analyze.describe()` added, so the same reading of your code drives both the
+  simulation and the explanation
+
+### Security
+- Source is tokenised and then escaped, never the other way round, so HTML typed
+  into a file stays text. Covered by a test
+
+### Tests
+- 56 checks (up from 50): overlay alignment, highlighting, live insight updates,
+  escaping, and the version shown in the header
+
 ## [1.0.0] — 2026-08-26  ·  commit `e82ee11`
 
 The first complete course: 24 lessons, from "what is a terminal" to custom
@@ -60,4 +91,5 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.1.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.0.0

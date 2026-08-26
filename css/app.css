@@ -52,7 +52,7 @@ header {
 .logo .bot { font-size: 22px; }
 .logo b { color: var(--accent); }
 .logo small { color: var(--ink3); font-weight: 600; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
-.logo small em { font-style: normal; color: var(--accent2); opacity: .8; letter-spacing: 0; }
+.logo small em { font-style: normal; color: var(--accent2); opacity: .85; letter-spacing: 0; text-transform: none; }
 
 .hspace { flex: 1; }
 
@@ -368,16 +368,55 @@ body.pro-mode .epro { display: block; margin: 0; padding: 0; border: 0; color: #
   border-radius: 6px; padding: 5px 12px; font-size: 11.5px; font-weight: 800;
 }
 #editor-save.hot { background: var(--ok); border-color: var(--ok); color: #062012; }
-#editor-wrap { flex: 1; display: flex; overflow: hidden; background: #070b14; }
+#editor-wrap { flex: 1; display: flex; overflow: hidden; background: #070b14; min-height: 0; }
+#editor-code { position: relative; flex: 1; overflow: hidden; }
+
+/* The colour layer and the textarea are stacked and must line up to the
+   pixel, so every text metric below is shared by both. */
+#editor-hl, #editor-area {
+  position: absolute; inset: 0; margin: 0;
+  font-family: var(--mono); font-size: 12.4px; line-height: 1.55;
+  padding: 10px 12px; border: 0; tab-size: 4;
+  white-space: pre; word-wrap: normal; letter-spacing: normal;
+}
+#editor-hl { overflow: hidden; pointer-events: none; color: #dce8ff; }
+#editor-area {
+  background: transparent; outline: 0; resize: none; overflow: auto;
+  color: transparent; caret-color: var(--accent2);
+}
+#editor-area::selection { background: rgba(122,162,255,.35); color: transparent; }
+#editor-area:disabled { cursor: default; }
+
+/* syntax colours */
+#editor-hl i { font-style: normal; }
+#editor-hl .k { color: #c792ea; font-weight: 600; }   /* keyword      */
+#editor-hl .s { color: #a5e88a; }                     /* string       */
+#editor-hl .c { color: #5b6b8a; font-style: italic; } /* comment      */
+#editor-hl .n { color: #ffb86c; }                     /* number       */
+#editor-hl .d { color: #82c8ff; font-weight: 700; }   /* def/class    */
+#editor-hl .f { color: #78ffd6; }                     /* call         */
+#editor-hl .r { color: #ff8fab; }                     /* ROS name     */
+#editor-hl .self { color: #7aa2ff; font-style: italic; }
+
+/* "what your code will do" */
+#editor-insight { display: none; flex-shrink: 0; max-height: 38%; overflow-y: auto;
+  border-top: 1px solid var(--line); background: #0d1424; }
+#editor-insight.on { display: block; }
+#editor-insight .ihead {
+  padding: 7px 11px 5px; font-size: 10px; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--ink3); font-weight: 800; position: sticky; top: 0; background: #0d1424;
+}
+#insight-list { list-style: none; margin: 0; padding: 0 11px 9px; display: flex; flex-direction: column; gap: 4px; }
+#insight-list li { display: flex; gap: 7px; font-size: 12.3px; line-height: 1.45; color: var(--ink2); }
+#insight-list li.warn { color: var(--gold); }
+#insight-list .iicon { flex-shrink: 0; }
+#insight-list b { color: var(--accent2); font-weight: 700; }
+#insight-list li.warn b { color: var(--gold); }
+#insight-list code { background: #0a1120; border-radius: 4px; padding: 0 4px; color: var(--accent2); font-size: 11.4px; }
 #editor-lines {
   padding: 10px 6px 10px 10px; font-family: var(--mono); font-size: 12.4px; line-height: 1.55;
   color: #3a4a68; text-align: right; user-select: none; overflow: hidden; white-space: pre;
   border-right: 1px solid var(--line); background: #090e19;
-}
-#editor-area {
-  flex: 1; background: none; border: 0; outline: 0; resize: none; color: #dce8ff;
-  font-family: var(--mono); font-size: 12.4px; line-height: 1.55; padding: 10px 12px;
-  tab-size: 4; white-space: pre; overflow: auto;
 }
 #editor-status { padding: 6px 10px; font-size: 11px; color: var(--ink3); border-top: 1px solid var(--line); flex-shrink: 0; }
 

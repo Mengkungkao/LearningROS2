@@ -137,6 +137,54 @@ const server = http.createServer((req, res) => {
   check('talker_node.py written', await page.evaluate(() => (VFS.readFile('/home/student/ros2_ws/src/my_robot/my_robot/talker_node.py')||'').includes('create_publisher')));
   check('setup.py has entry point', await page.evaluate(() => /talker = my_robot\.talker_node:main/.test(VFS.readFile('/home/student/ros2_ws/src/my_robot/setup.py')||'')));
 
+  // --- editor: highlighting, live insight, and escaping (v1.1.0)
+  await page.evaluate(() => { U.Bus.emit('editor:open', { path: '/home/student/ros2_ws/src/my_robot/my_robot/talker_node.py' }); });
+  await page.click('#view-tabs button[data-panel="editor"]');
+  await page.waitForTimeout(300);
+  const metrics = await page.evaluate(() => {
+    const a = getComputedStyle(document.querySelector('#editor-area'));
+    const h = getComputedStyle(document.querySelector('#editor-hl'));
+    return a.fontFamily === h.fontFamily && a.fontSize === h.fontSize &&
+           a.lineHeight === h.lineHeight && a.padding === h.padding && a.whiteSpace === h.whiteSpace;
+  });
+  check('editor overlay lines up with the textarea', metrics);
+  const tokenKinds = await page.evaluate(() => {
+    const set = new Set();
+    document.querySelectorAll('#editor-hl i').forEach(i => set.add(i.className));
+    return Array.from(set);
+  });
+  check('python is syntax highlighted', ['k','s','c','n','d','f'].filter(k => tokenKinds.includes(k)).length >= 4, tokenKinds.join(','));
+
+  const insight1 = await page.evaluate(() => document.querySelector('#insight-list').innerText);
+  check('insight reads the code', /my_talker/.test(insight1) && /chatter/.test(insight1), insight1.replace(/\s+/g, ' '));
+  await page.evaluate(() => {
+    const a = document.querySelector('#editor-area');
+    a.value = a.value.replace("'chatter'", "'robot_news'").replace('create_timer(1.0', 'create_timer(0.25');
+    a.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(250);
+  const insight2 = await page.evaluate(() => document.querySelector('#insight-list').innerText);
+  check('insight follows an edit', /robot_news/.test(insight2) && /4 times a second/.test(insight2), insight2.replace(/\s+/g, ' '));
+
+  await page.evaluate(() => {
+    const a = document.querySelector('#editor-area');
+    a.value = "# <img src=x onerror=alert(1)> <b>hi</b>\nname = '<script>'\n";
+    a.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(200);
+  const injected = await page.evaluate(() => ({
+    tags: document.querySelectorAll('#editor-hl img, #editor-hl b, #editor-hl script').length,
+    literal: document.querySelector('#editor-hl').textContent.includes('<img src=x')
+  }));
+  check('typed HTML stays text, never markup', injected.tags === 0 && injected.literal, JSON.stringify(injected));
+
+  // put the real file back before carrying on
+  await page.evaluate(() => { U.Bus.emit('editor:open', { path: '/home/student/ros2_ws/src/my_robot/my_robot/talker_node.py' }); });
+  await page.waitForTimeout(200);
+
+  const versionShown = await page.evaluate(() => (document.querySelector('#app-version') || {}).textContent);
+  check('version is shown in the header', versionShown === 'v' + '1.1.0', versionShown);
+
   await type('cd ~/ros2_ws');
   await type('colcon build', 700);
   check('colcon build finished', (await out()).includes('Summary: 1 package finished'), await tail(12));

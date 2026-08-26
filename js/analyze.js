@@ -309,8 +309,68 @@
     });
   }
 
+  /**
+   * Turn an analysis into plain sentences: exactly what the simulator
+   * believes this file will do. Showing this makes the analyser's
+   * understanding — and its limits — visible while you type.
+   */
+  function describe(a) {
+    const out = [];
+    if (a.nodeName) out.push({ icon: '🏷️', text: 'be a node called **' + a.nodeName + '**' });
+    else out.push({ icon: '❓', text: 'have no name yet — add `super().__init__(\'some_name\')`', cls: 'warn' });
+
+    a.publishers.forEach((p) => {
+      const period = periodFor(a, p);
+      out.push({
+        icon: '📤',
+        text: 'publish **' + short(p.type) + '** on **' + topic(p.topic) + '**' +
+          (period ? ' every **' + period + 's** (' + rate(period) + ')' : ' — but nothing triggers it yet')
+      });
+    });
+
+    a.subscriptions.forEach((s) => {
+      out.push({ icon: '📥', text: 'listen to **' + topic(s.topic) + '** for **' + short(s.type) + '** messages' });
+    });
+
+    a.services.forEach((s) => {
+      out.push({ icon: '🛎️', text: 'answer the **' + topic(s.name) + '** service' });
+    });
+
+    a.params.forEach((p) => {
+      out.push({ icon: '⚙️', text: 'have a setting **' + p.name + '** starting at `' + p.value + '`' });
+    });
+
+    a.timers.forEach((t) => {
+      const used = a.publishers.some((p) => periodFor(a, p) === String(t.period));
+      if (!used) out.push({ icon: '⏱️', text: 'run **' + t.cb + '()** every **' + t.period + 's**' });
+    });
+
+    a.warnings.forEach((w) => out.push({ icon: '⚠️', text: w, cls: 'warn' }));
+    return out;
+  }
+
+  /** Which timer fires the callback that publishes on this publisher? */
+  function periodFor(a, pub) {
+    for (const t of a.timers) {
+      const body = a.defs[t.cb] || '';
+      const m = body.match(/self\.(\w+)\s*\.\s*publish\s*\(/);
+      if (!m) continue;
+      if (!pub.varName || m[1] === pub.varName) return String(t.period);
+    }
+    return null;
+  }
+
+  function rate(period) {
+    const hz = Math.round((1 / parseFloat(period)) * 10) / 10;
+    if (hz === 1) return 'once a second';
+    if (hz < 1) return 'once every ' + (Math.round(parseFloat(period) * 10) / 10) + ' seconds';
+    return hz + ' times a second';
+  }
+  function short(type) { return String(type).split('/').pop(); }
+  function topic(t) { return t && t[0] === '/' ? t : '/' + t; }
+
   global.Analyze = {
-    python: python, toSpec: toSpec, splitDefs: splitDefs,
+    python: python, toSpec: toSpec, splitDefs: splitDefs, describe: describe,
     logCalls: logCalls, interpolate: interpolate, KNOWN_TYPES: KNOWN_TYPES
   };
 })(window);
