@@ -52,6 +52,7 @@ header {
 .logo .bot { font-size: 22px; }
 .logo b { color: var(--accent); }
 .logo small { color: var(--ink3); font-weight: 600; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
+.logo small em { font-style: normal; color: var(--accent2); opacity: .8; letter-spacing: 0; }
 
 .hspace { flex: 1; }
 

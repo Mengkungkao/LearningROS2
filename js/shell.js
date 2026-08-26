@@ -608,7 +608,7 @@
         ['Moving', ['cd']],
         ['ROS 2', ['source', 'ros2', 'colcon', 'rqt_graph', 'rviz2']],
         ['Terminal life', ['clear', 'history', 'help', 'man', 'which', 'printenv', 'export', 'whoami', 'date']],
-        ['Academy extras', ['hint', 'lesson', 'reset', 'kill', 'jobs', 'showme']]
+        ['Academy extras', ['hint', 'lesson', 'reset', 'kill', 'jobs', 'showme', 'version']]
       ];
       const out = ['<b>Commands you can use right now</b>', ''];
       groups.forEach((g) => {

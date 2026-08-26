@@ -22,6 +22,8 @@
     badges: Object.create(null),
 
     init() {
+      const v = U.$('#app-version');
+      if (v && global.APP_INFO) v.textContent = 'v' + global.APP_INFO.version;
       this.load();
 
       Term.init(U.$('#terminal'));
@@ -448,6 +450,20 @@
       const cmd = lesson.cheats[Math.max(0, Math.min(idx, lesson.cheats.length - 1))];
       io.write('Watch the prompt...', 'hint');
       setTimeout(() => Bus.emit('term:type', { text: cmd, run: false }), 400);
+      return { code: 0 };
+    }
+  });
+
+  Shell.def('version', {
+    help: 'Which version of the academy is this?',
+    usage: 'version',
+    run(args, io) {
+      const a = global.APP_INFO || {};
+      io.write(a.name + ' ' + (a.version ? 'v' + a.version : '') + '\n' +
+        'Pretending to be ROS 2 ' + (a.rosDistro || 'jazzy') + '\n' +
+        (a.repo || ''));
+      io.write('');
+      io.write('Everything you type here also works on a real ROS 2 ' + (a.rosDistro || 'jazzy') + ' install.', 'hint');
       return { code: 0 };
     }
   });
