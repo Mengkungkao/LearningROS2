@@ -6,10 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Bump `VERSION`, `package.json` and `js/version.js` together with each release.
+See [RELEASING.md](RELEASING.md) — including why the tags are not on the remote yet.
 
 ---
 
-## [1.0.0] — 2026-08-26
+## [1.0.0] — 2026-08-26  ·  commit `e82ee11`
 
 The first complete course: 24 lessons, from "what is a terminal" to custom
 message types.
