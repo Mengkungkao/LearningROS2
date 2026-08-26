@@ -1,0 +1,16 @@
+{
+  "name": "ros2-academy",
+  "version": "1.4.0",
+  "description": "Learn ROS 2 from zero to pro in your browser: a simulated terminal, a live node graph, and a turtle robot that moves when your code tells it to.",
+  "keywords": ["ros2", "ros", "robotics", "education", "teaching", "simulator", "terminal", "turtlesim"],
+  "license": "Apache-2.0",
+  "private": false,
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node test/e2e.js",
+    "test:headed": "HEADED=1 node test/e2e.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  }
+}
