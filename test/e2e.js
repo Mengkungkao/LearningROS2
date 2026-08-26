@@ -264,6 +264,44 @@ const server = http.createServer((req, res) => {
   check('bag replay reaches a live listener', afterReplay.includes('I heard: [Hello World'), afterReplay.slice(-200));
   await type('kill all');
 
+  // --- QoS (v1.3.0): the silent failure, using a camera like real life
+  await type('kill all');
+  await type('ros2 run image_tools cam2image', 800);
+  const beforeEcho = (await out()).length;
+  await type('ros2 topic echo /image', 1800);
+  const duringEcho = (await out()).slice(beforeEcho);
+  await page.click('#term-stop');
+  await page.waitForTimeout(250);
+  const qosState = await page.evaluate(() => ({
+    dropped: (ROS.topics['/image'] || {}).dropped || 0,
+    delivered: (ROS.topics['/image'] || {}).delivered || 0
+  }));
+  check('a RELIABLE echo hears nothing from a BEST_EFFORT publisher',
+    qosState.dropped > 0 && qosState.delivered === 0 && !duringEcho.includes('encoding'), JSON.stringify(qosState));
+  check('the silence is explained, not left mysterious', duringEcho.includes('Nothing will arrive'));
+  await type('ros2 topic info /image -v');
+  check('topic info -v shows the offending profile', (await out()).includes('Reliability: BEST_EFFORT'), await tail(10));
+  const beforeMatch = (await out()).length;
+  await type('ros2 topic echo /image --qos-reliability best_effort', 1500);
+  const matched = (await out()).slice(beforeMatch);
+  await page.click('#term-stop');
+  await page.waitForTimeout(250);
+  check('matching the QoS makes the frames arrive', matched.includes("encoding: 'rgb8'"), matched.slice(-150));
+  await type('kill all');
+
+  // --- namespaces (v1.3.0)
+  await type('ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot1');
+  await type('ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot2');
+  await type('ros2 run demo_nodes_cpp listener --ros-args -r __ns:=/robot1', 1600);
+  const nsState = await page.evaluate(() => ({
+    r1: (ROS.topics['/robot1/chatter'] || {}).delivered || 0,
+    r2: (ROS.topics['/robot2/chatter'] || {}).delivered || 0,
+    nodes: ROS.nodeList().filter(n => n.indexOf('/robot') === 0).length
+  }));
+  check('a namespace keeps two copies of the same node apart',
+    nsState.nodes === 3 && nsState.r1 > 0 && nsState.r2 === 0, JSON.stringify(nsState));
+  await type('kill all');
+
   // --- challenges (v1.2.0)
   await page.click('#side-tabs button[data-view="challenges"]');
   await page.waitForTimeout(250);

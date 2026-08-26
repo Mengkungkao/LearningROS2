@@ -73,7 +73,7 @@ Same lesson, two registers. Kids read the left column; engineers read the right 
 
 ---
 
-## The course — 24 lessons
+## The course — 26 lessons
 
 **Level 1 · Talking to a computer** *(no ROS 2 at all yet)*
 `pwd` `ls` `cd` `mkdir` `touch` `echo >` `cat` `cp` `mv` `rm` `tree`
@@ -92,7 +92,8 @@ robot · launch files
 
 **Level 5 · Pro moves**
 Custom `.msg` interfaces · parameters in your own code · `ros2 bag` record & replay ·
-the four questions that debug any ROS 2 problem · TF frames · graduation
+the four questions that debug any ROS 2 problem · TF frames · **QoS and the silent
+failure** · **namespaces for running two robots at once** · graduation
 
 ### 🏆 Challenges
 
@@ -137,7 +138,8 @@ Being straight about this, because it matters for what you learn:
   remapping, namespaces, workspaces, packages, entry points, launch, bags, TF
 * Failure modes that actually bite people: forgetting to `source`, forgetting
   `source install/setup.bash` after a build, a missing `console_scripts` entry, mismatched
-  topic names, a publisher count of `0`
+  topic names, a publisher count of `0`, and a **QoS mismatch** — a RELIABLE subscriber
+  really does receive nothing from a BEST_EFFORT publisher, silently, just like real ROS 2
 * The `/rosout` and `/parameter_events` topics every node quietly publishes on
 
 **Pretend:**

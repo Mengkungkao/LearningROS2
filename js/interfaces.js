@@ -48,6 +48,17 @@
       header: '', fields: [{ n: 'r', t: 'uint8', d: 0 }, { n: 'g', t: 'uint8', d: 0 }, { n: 'b', t: 'uint8', d: 0 }]
     },
 
+    /* ---- sensor_msgs ---------------------------------- */
+    'sensor_msgs/msg/Image': {
+      header: '# A single camera frame. Cameras normally send these BEST_EFFORT:\n' +
+        '# a dropped frame does not matter, another one is coming.',
+      fields: [
+        { n: 'height', t: 'uint32', d: 0 }, { n: 'width', t: 'uint32', d: 0 },
+        { n: 'encoding', t: 'string', d: '' }, { n: 'step', t: 'uint32', d: 0 },
+        { n: 'data', t: 'array', d: [], c: '# the pixels (not shown — there are far too many)' }
+      ]
+    },
+
     /* ---- tf2 ------------------------------------------ */
     'tf2_msgs/msg/TFMessage': {
       header: '', fields: [{ n: 'transforms', t: 'array', d: [] }]

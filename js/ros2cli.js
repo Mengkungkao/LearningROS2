@@ -41,6 +41,26 @@
     }).join(', ');
   }
 
+  /** Strip --qos-* flags off an argument list; returns {qos, rest}. */
+  function takeQos(a) {
+    const rest = [], qos = {};
+    for (let i = 0; i < a.length; i++) {
+      const m = a[i].match(/^--qos-(reliability|durability|depth)$/);
+      if (m && a[i + 1] !== undefined) {
+        const v = a[++i];
+        qos[m[1]] = m[1] === 'depth' ? (parseInt(v, 10) || 10) : v.toUpperCase().replace(/-/g, '_');
+        continue;
+      }
+      rest.push(a[i]);
+    }
+    return { qos: Object.keys(qos).length ? qos : null, rest: rest };
+  }
+
+  function qosLine(q) {
+    return '  Reliability: ' + q.reliability + '\n  Durability: ' + q.durability +
+      '\n  History (Depth): KEEP_LAST (' + q.depth + ')';
+  }
+
   function fuzzyTopic(name) {
     if (ROS.topics[name]) return name;
     const withSlash = name[0] === '/' ? name : '/' + name;
@@ -238,17 +258,23 @@
     }
 
     if (sub === 'echo') {
-      const name = fuzzyTopic(a.filter((x) => x[0] !== '-')[0] || '');
+      const cut = takeQos(a);
+      const name = fuzzyTopic(cut.rest.filter((x) => x[0] !== '-')[0] || '');
       if (!name) { notFound(io, 'Topic', a[0] || '(missing)', Object.keys(ROS.topics).sort()); return { code: 1 }; }
       const t = ROS.topics[name];
       const node = cliNode('sub');
-      if (node) ROS.addSub(node, name, t.type);
+      if (node) ROS.addSub(node, name, t.type, cut.qos);
+      if (node && ROS.qosMismatches(name).length) {
+        io.write('Warning: this subscription asks for ' + (cut.qos && cut.qos.reliability || 'RELIABLE') +
+          ', but a publisher on ' + name + ' offers less. Nothing will arrive.', 'err');
+        io.write('See who is offering what:  ros2 topic info ' + name + ' -v', 'hint');
+      }
       let n = 0;
       const un = ROS.subscribeRaw(name, (msg) => {
         n++;
         io.write(IFACE.dumpTyped(msg, t.type) || IFACE.dump(msg));
         io.write('---');
-      });
+      }, cut.qos);
       io.explain(
         'You are now **eavesdropping** on the `' + name + '` channel. Every message that flies past ' +
         'gets printed. The `---` line just separates one message from the next.',
@@ -260,7 +286,16 @@
           stop() {
             un();
             if (node) ROS.stop(node.fullname);
-            if (!n) io.write('(no messages arrived — is anything publishing to ' + name + '?)', 'hint');
+            if (n) return;
+            const dropped = ROS.topics[name] && ROS.topics[name].dropped;
+            if (dropped) {
+              io.write('(no messages arrived — ' + dropped + ' were refused because the QoS did not match. ' +
+                'Try adding  --qos-reliability best_effort )', 'hint');
+            } else if (!ROS.topics[name] || !ROS.topics[name].pubs.length) {
+              io.write('(no messages arrived — nothing is publishing to ' + name + ' yet)', 'hint');
+            } else {
+              io.write('(no messages arrived — the publisher is there but has not sent anything yet)', 'hint');
+            }
           }
         }
       };
@@ -293,13 +328,28 @@
       const verbose = a.indexOf('-v') >= 0 || a.indexOf('--verbose') >= 0;
       const out = ['Type: ' + t.type, '', 'Publisher count: ' + t.pubs.length, 'Subscription count: ' + t.subs.length];
       if (verbose) {
-        out.push('', 'QoS profile:',
-          '  Reliability: ' + t.qos.reliability, '  Durability: ' + t.qos.durability,
-          '  History (Depth): KEEP_LAST (' + t.qos.depth + ')');
-        out.push('', 'Publishers:', t.pubs.length ? '  ' + t.pubs.join('\n  ') : '  (none)');
-        out.push('Subscribers:', t.subs.length ? '  ' + t.subs.join('\n  ') : '  (none)');
+        t.pubs.forEach((p) => {
+          out.push('', 'Node name: ' + p.replace(/^\//, ''), 'Endpoint type: PUBLISHER',
+            'QoS profile:', qosLine(ROS.qosFor(p, 'pub', name)));
+        });
+        t.subs.forEach((sName) => {
+          out.push('', 'Node name: ' + sName.replace(/^\//, ''), 'Endpoint type: SUBSCRIPTION',
+            'QoS profile:', qosLine(ROS.qosFor(sName, 'sub', name)));
+        });
+        const bad = ROS.qosMismatches(name);
+        if (bad.length) {
+          out.push('');
+          bad.forEach((b) => {
+            out.push('!! ' + b.pub + ' offers ' + b.pubQos.reliability + ' but ' + b.sub +
+              ' requests ' + b.subQos.reliability + ' — these two will never connect.');
+          });
+        }
       }
       io.write(out.join('\n'));
+      if (verbose && ROS.qosMismatches(name).length) {
+        io.write('Fix it by making both sides agree. Whoever is stricter has to relax, or the ' +
+          'publisher has to promise more.', 'hint');
+      }
       io.explain(
         'The **type** is the shape of the message — like knowing a letter contains a name and an address. ' +
         'Publisher count = how many nodes shout here. Subscription count = how many listen.',
@@ -330,7 +380,9 @@
     return { code: 2 };
   };
 
-  function topicPub(a, io) {
+  function topicPub(rawArgs, io) {
+    const cut = takeQos(rawArgs);
+    const a = cut.rest;
     let once = false, rate = 1, times = 0;
     const pos = [];
     for (let i = 0; i < a.length; i++) {
@@ -364,7 +416,19 @@
     const full = topic[0] === '/' ? topic : '/' + topic;
 
     const node = cliNode('pub');
-    if (node) ROS.addPub(node, full, type);
+    if (node) ROS.addPub(node, full, type, cut.qos);
+
+    const bad = ROS.qosMismatches(full);
+    if (bad.length) {
+      io.write('Warning: you are publishing as ' + bad[0].pubQos.reliability + ', but ' +
+        bad[0].sub + ' asked for ' + bad[0].subQos.reliability + '. It will hear nothing.', 'err');
+      io.explain(
+        'The wire looks connected, but **nothing gets through**. The two sides disagree about how ' +
+        'careful to be. A listener that insists on RELIABLE will refuse a BEST_EFFORT talker — ' +
+        'and ROS 2 says nothing about it. This is the sneakiest bug in ROS 2.',
+        'Offered QoS is weaker than requested QoS, so the endpoints never match. Check with topic info -v.'
+      );
+    }
 
     let n = 0;
     const send = () => {

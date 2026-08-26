@@ -52,7 +52,10 @@
       if (!t) {
         t = this.topics[name] = {
           name: name, type: type || 'unknown', pubs: [], subs: [],
-          count: 0, last: null, times: [], qos: { reliability: 'RELIABLE', durability: 'VOLATILE', depth: 10 }
+          count: 0, last: null, times: [],
+          qos: { reliability: 'RELIABLE', durability: 'VOLATILE', depth: 10 },
+          /* endpoint -> qos, so a mismatch between two nodes is visible */
+          endpoints: Object.create(null)
         };
         Bus.emit('ros:topic', { action: 'create', topic: name, type: t.type });
       }
@@ -141,7 +144,8 @@
         const full = node.resolve(p.topic);
         const t = this.ensureTopic(full, p.type);
         t.pubs.push(node.fullname);
-        node.pubs.push({ topic: full, type: p.type, rate: p.rate });
+        t.endpoints[node.fullname + '|pub|' + full] = qosOf(p.qos, parsed.qos);
+        node.pubs.push({ topic: full, type: p.type, rate: p.rate, qos: qosOf(p.qos, parsed.qos) });
         if (p.rate) {
           node.every(1 / p.rate, () => {
             const m = p.build ? p.build(node) : IFACE.template(p.type);
@@ -153,7 +157,8 @@
         const full = node.resolve(s.topic);
         const t = this.ensureTopic(full, s.type);
         t.subs.push(node.fullname);
-        node.subs.push({ topic: full, type: s.type });
+        t.endpoints[node.fullname + '|sub|' + full] = qosOf(s.qos, parsed.qos);
+        node.subs.push({ topic: full, type: s.type, qos: qosOf(s.qos, parsed.qos) });
       });
       (spec.services || []).forEach((s) => {
         const full = node.resolve(s.name);
@@ -225,15 +230,28 @@
       t.times.push(Date.now());
       if (t.times.length > 60) t.times.shift();
 
+      const pubQos = fromNode ? this.qosFor(fromNode.fullname, 'pub', topic) : DEFAULT_QOS;
       t.subs.slice().forEach((subName) => {
         const n = this.nodes[subName];
-        if (n && n.spec.onMessage) {
+        if (!n) return;
+        /* A RELIABLE subscriber will not accept a BEST_EFFORT publisher. Real
+           ROS 2 simply never connects them, and nothing is logged — which is
+           exactly why this bug is so hard to find the first time. */
+        if (!compatible(pubQos, this.qosFor(subName, 'sub', topic))) {
+          t.dropped = (t.dropped || 0) + 1;
+          return;
+        }
+        t.delivered = (t.delivered || 0) + 1;
+        if (n.spec.onMessage) {
           try { n.spec.onMessage(n, topic, msg, this); } catch (e) { console.error('[node ' + subName + ']', e); }
         }
       });
 
       this._streams.slice().forEach((s) => {
-        if (s.topic === topic) { try { s.cb(msg, t); } catch (e) { console.error(e); } }
+        if (s.topic !== topic) return;
+        /* an echo is a subscriber like any other: same QoS rules apply */
+        if (s.qos && !compatible(pubQos, s.qos)) { t.dropped = (t.dropped || 0) + 1; return; }
+        try { s.cb(msg, t); } catch (e) { console.error(e); }
       });
 
       Object.keys(this.bags).forEach((b) => {
@@ -248,8 +266,8 @@
     },
 
     /** Used by `ros2 topic echo` — returns an unsubscribe function. */
-    subscribeRaw(topic, cb) {
-      const s = { topic: topic, cb: cb };
+    subscribeRaw(topic, cb, qos) {
+      const s = { topic: topic, cb: cb, qos: qosOf(qos, null) };
       this._streams.push(s);
       this.ensureTopic(topic);
       Bus.emit('graph:dirty', {});
@@ -259,6 +277,26 @@
         this.dropTopicIfEmpty(topic);
         Bus.emit('graph:dirty', {});
       };
+    },
+
+    qosFor(nodeName, kind, topic) {
+      const t = this.topics[topic];
+      if (!t) return DEFAULT_QOS;
+      return t.endpoints[nodeName + '|' + kind + '|' + topic] || DEFAULT_QOS;
+    },
+
+    /** Every publisher/subscriber pair on a topic that can never connect. */
+    qosMismatches(topic) {
+      const t = this.topics[topic];
+      if (!t) return [];
+      const out = [];
+      t.pubs.forEach((p) => {
+        t.subs.forEach((sName) => {
+          const pq = this.qosFor(p, 'pub', topic), sq = this.qosFor(sName, 'sub', topic);
+          if (!compatible(pq, sq)) out.push({ pub: p, sub: sName, pubQos: pq, subQos: sq });
+        });
+      });
+      return out;
     },
 
     hz(topic) {
@@ -344,20 +382,22 @@
 
 
     /* ---- adding interfaces while a node is running ------ */
-    addPub(node, topic, type) {
+    addPub(node, topic, type, qos) {
       const full = node.resolve(topic);
       const t = this.ensureTopic(full, type);
       if (t.pubs.indexOf(node.fullname) < 0) t.pubs.push(node.fullname);
-      if (!node.pubs.some((p) => p.topic === full)) node.pubs.push({ topic: full, type: type });
+      t.endpoints[node.fullname + '|pub|' + full] = qosOf(qos, null);
+      if (!node.pubs.some((p) => p.topic === full)) node.pubs.push({ topic: full, type: type, qos: qosOf(qos, null) });
       Bus.emit('graph:dirty', {});
       return full;
     },
 
-    addSub(node, topic, type) {
+    addSub(node, topic, type, qos) {
       const full = node.resolve(topic);
       const t = this.ensureTopic(full, type);
       if (t.subs.indexOf(node.fullname) < 0) t.subs.push(node.fullname);
-      if (!node.subs.some((s) => s.topic === full)) node.subs.push({ topic: full, type: type });
+      t.endpoints[node.fullname + '|sub|' + full] = qosOf(qos, null);
+      if (!node.subs.some((s) => s.topic === full)) node.subs.push({ topic: full, type: type, qos: qosOf(qos, null) });
       Bus.emit('graph:dirty', {});
       return full;
     },
@@ -422,9 +462,39 @@
     }
   };
 
+  /* ---- QoS -------------------------------------------- */
+  const DEFAULT_QOS = { reliability: 'RELIABLE', durability: 'VOLATILE', depth: 10 };
+
+  /** Spec-declared QoS, overridden by anything given on the command line. */
+  function qosOf(declared, fromArgs) {
+    return Object.assign({}, DEFAULT_QOS, declared || {}, fromArgs || {});
+  }
+
+  /**
+   * The offered/requested rule, simplified to the two settings a learner
+   * meets first: a publisher must offer at least what the subscriber asks for.
+   */
+  function compatible(pub, sub) {
+    if (sub.reliability === 'RELIABLE' && pub.reliability === 'BEST_EFFORT') return false;
+    if (sub.durability === 'TRANSIENT_LOCAL' && pub.durability === 'VOLATILE') return false;
+    return true;
+  }
+
+  ROS.DEFAULT_QOS = DEFAULT_QOS;
+  ROS.qosCompatible = compatible;
+
   /* ---- `--ros-args` parsing --------------------------- */
   function parseRosArgs(args) {
-    const out = { remaps: Object.create(null), params: Object.create(null), ns: null, nodeName: null };
+    const out = { remaps: Object.create(null), params: Object.create(null), ns: null, nodeName: null, qos: null };
+    /* --qos-reliability / --qos-durability / --qos-depth sit outside --ros-args,
+       the same way the real CLI accepts them on topic pub and topic echo */
+    for (let i = 0; i < args.length; i++) {
+      const m = args[i].match(/^--qos-(reliability|durability|depth)$/);
+      if (!m || args[i + 1] === undefined) continue;
+      out.qos = out.qos || {};
+      const v = args[++i];
+      out.qos[m[1]] = m[1] === 'depth' ? (parseInt(v, 10) || 10) : v.toUpperCase().replace(/-/g, '_');
+    }
     let inRos = false;
     for (let i = 0; i < args.length; i++) {
       const a = args[i];

@@ -337,6 +337,36 @@
     }
   });
 
+  /* ---- a pretend camera: the classic BEST_EFFORT publisher --- */
+  ROS.register('image_tools/cam2image', {
+    node: 'cam2image',
+    describe: 'A pretend camera. Sends frames on /image as BEST_EFFORT, exactly like a real one.',
+    publishers: [{
+      topic: '/image', type: 'sensor_msgs/msg/Image', rate: 5,
+      /* real cameras publish BEST_EFFORT + KEEP_LAST(5): losing a frame is
+         cheaper than delaying the next one */
+      qos: { reliability: 'BEST_EFFORT', depth: 5 },
+      build(node) {
+        node.state.frame = (node.state.frame || 0) + 1;
+        return { height: 240, width: 320, encoding: 'rgb8', step: 960, data: [] };
+      }
+    }],
+    start(node) {
+      node.log('Publishing image #1');
+      node.log('This camera sends BEST_EFFORT. A plain  ros2 topic echo /image  will hear nothing!', 'WARN');
+    }
+  });
+
+  ROS.register('image_tools/showimage', {
+    node: 'showimage',
+    describe: 'Displays camera frames. Asks for BEST_EFFORT, so it matches the camera.',
+    subscribers: [{ topic: '/image', type: 'sensor_msgs/msg/Image', qos: { reliability: 'BEST_EFFORT', depth: 5 } }],
+    onMessage(node, topic, msg) {
+      node.state.n = (node.state.n || 0) + 1;
+      if (node.state.n % 5 === 1) node.log('Received image #' + node.state.n + ' (' + msg.width + 'x' + msg.height + ')');
+    }
+  });
+
   /* ---- tf2 static transform publisher ------------------- */
   ROS.register('tf2_ros/static_transform_publisher', {
     node: 'static_transform_publisher',
@@ -366,7 +396,7 @@
   ROS.frames = [];
 
   /* ---- packages that exist in the pretend install -------- */
-  ['demo_nodes_cpp', 'demo_nodes_py', 'turtlesim', 'tf2_ros', 'std_msgs', 'geometry_msgs',
+  ['demo_nodes_cpp', 'demo_nodes_py', 'turtlesim', 'tf2_ros', 'image_tools', 'sensor_msgs', 'std_msgs', 'geometry_msgs',
     'std_srvs', 'example_interfaces', 'rclpy', 'rclcpp', 'launch', 'launch_ros', 'rosidl_default_generators']
     .forEach((p) => { ROS.packages[p] = { name: p, kind: 'installed', path: '/opt/ros/jazzy/share/' + p }; });
 

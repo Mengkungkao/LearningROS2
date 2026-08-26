@@ -123,6 +123,24 @@
     return a;
   }
 
+  /**
+   * Read the QoS argument of create_publisher / create_subscription.
+   * A bare number is a depth; the named profiles and enum values carry
+   * reliability and durability with them.
+   */
+  function qosFromText(txt) {
+    const t = String(txt || '').trim();
+    const q = {};
+    if (/^\d+$/.test(t)) { q.depth = parseInt(t, 10); return q; }
+    if (/sensor_data/i.test(t)) { q.reliability = 'BEST_EFFORT'; q.depth = 5; }
+    if (/BEST_EFFORT/i.test(t)) q.reliability = 'BEST_EFFORT';
+    if (/RELIABLE/i.test(t)) q.reliability = 'RELIABLE';
+    if (/TRANSIENT_LOCAL/i.test(t)) q.durability = 'TRANSIENT_LOCAL';
+    const d = t.match(/depth\s*=\s*(\d+)/);
+    if (d) q.depth = parseInt(d[1], 10);
+    return q;
+  }
+
   function coerce(v) {
     v = String(v).trim().replace(/,$/, '');
     if (/^['"]/.test(v)) return v.slice(1, -1);
@@ -219,10 +237,10 @@
     a.params.forEach((p) => { spec.params[p.name] = p.value; });
 
     a.publishers.forEach((p) => {
-      spec.publishers.push({ topic: p.topic, type: p.type });
+      spec.publishers.push({ topic: p.topic, type: p.type, qos: qosFromText(p.qos) });
     });
     a.subscriptions.forEach((s) => {
-      spec.subscribers.push({ topic: s.topic, type: s.type });
+      spec.subscribers.push({ topic: s.topic, type: s.type, qos: qosFromText(s.qos) });
     });
     a.services.forEach((s) => {
       spec.services.push({
@@ -324,12 +342,16 @@
       out.push({
         icon: '📤',
         text: 'publish **' + short(p.type) + '** on **' + topic(p.topic) + '**' +
-          (period ? ' every **' + period + 's** (' + rate(period) + ')' : ' — but nothing triggers it yet')
+          (period ? ' every **' + period + 's** (' + rate(period) + ')' : ' — but nothing triggers it yet') +
+          qosNote(p.qos)
       });
     });
 
     a.subscriptions.forEach((s) => {
-      out.push({ icon: '📥', text: 'listen to **' + topic(s.topic) + '** for **' + short(s.type) + '** messages' });
+      out.push({
+        icon: '📥',
+        text: 'listen to **' + topic(s.topic) + '** for **' + short(s.type) + '** messages' + qosNote(s.qos)
+      });
     });
 
     a.services.forEach((s) => {
@@ -366,11 +388,16 @@
     if (hz < 1) return 'once every ' + (Math.round(parseFloat(period) * 10) / 10) + ' seconds';
     return hz + ' times a second';
   }
+  function qosNote(raw) {
+    const q = qosFromText(raw);
+    if (!q.reliability && !q.durability) return '';
+    return ', as **' + (q.reliability || 'RELIABLE') + '**';
+  }
   function short(type) { return String(type).split('/').pop(); }
   function topic(t) { return t && t[0] === '/' ? t : '/' + t; }
 
   global.Analyze = {
     python: python, toSpec: toSpec, splitDefs: splitDefs, describe: describe,
-    logCalls: logCalls, interpolate: interpolate, KNOWN_TYPES: KNOWN_TYPES
+    logCalls: logCalls, interpolate: interpolate, KNOWN_TYPES: KNOWN_TYPES, qosFromText: qosFromText
   };
 })(window);

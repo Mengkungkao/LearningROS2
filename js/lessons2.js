@@ -625,6 +625,121 @@
   });
 
   L.push({
+    id: 'pro-qos', level: 5, emoji: '🤝', title: 'When the wire lies',
+    goal: 'Meet the sneakiest bug in ROS 2 — and learn to see it.',
+    panel: 'inspect',
+    kid:
+      "Everything looks right. The node is running. The topic exists. The names match. " +
+      "And **nothing arrives**. No error. No warning. Nothing.\n\n" +
+      "Here is why. When two nodes connect they make a **promise** about how careful they will be, " +
+      "called **QoS** (Quality of Service). The big one is:\n\n" +
+      "• **RELIABLE** — \"I will keep resending until you definitely get it.\"\n" +
+      "• **BEST_EFFORT** — \"I will send it once. If it gets lost, oh well.\"\n\n" +
+      "Cameras use BEST_EFFORT: a lost frame does not matter, another one arrives in a 30th of a " +
+      "second. Emergency-stop buttons use RELIABLE.\n\n" +
+      "**The trap:** a listener who insists on RELIABLE will refuse a talker who only offers " +
+      "BEST_EFFORT. They never connect, and ROS 2 says nothing.\n\n" +
+      "Start the pretend camera and try to look at its pictures. `ros2 topic echo` asks for RELIABLE " +
+      "unless you tell it otherwise — so it will sit there, silent, forever. Almost everybody meets " +
+      "this bug for the first time with a camera.",
+    pro:
+      "QoS follows an offered/requested contract: the publisher's offer must be at least as strong " +
+      "as the subscriber's request, per policy. Mismatches are silent by design — the endpoints " +
+      "never match during discovery. `ros2 topic info -v` prints each endpoint's profile, which is " +
+      "the fastest way to spot it. Sensor data conventionally uses BEST_EFFORT + KEEP_LAST(5); " +
+      "commands, transforms and latched maps use RELIABLE (maps add TRANSIENT_LOCAL so late " +
+      "subscribers still get the last message).",
+    tasks: [
+      { text: 'Clear the decks: `kill all`', hint: 'kill all', check: (c) => H.ran(c, /^kill\s+all/) },
+      {
+        text: 'Start the pretend camera: `ros2 run image_tools cam2image`',
+        hint: 'ros2 run image_tools cam2image',
+        check: () => H.node('cam2image')
+      },
+      {
+        text: 'Try to watch it: `ros2 topic echo /image` — nothing comes out. Ctrl+C',
+        hint: 'ros2 topic echo /image  — it will stay silent, which is the whole point. Press Ctrl+C.',
+        check: (c) => H.ran(c, /topic\s+echo\s+\/image\s*$/) &&
+          !!ROS.topics['/image'] && (ROS.topics['/image'].dropped || 0) > 0
+      },
+      {
+        text: 'Find the bug: `ros2 topic info /image -v` and read both QoS profiles',
+        hint: 'ros2 topic info /image -v',
+        check: (c) => H.ran(c, /topic\s+info\s+\/image\s+-v/)
+      },
+      {
+        text: 'Ask nicely: `ros2 topic echo /image --qos-reliability best_effort`',
+        hint: 'ros2 topic echo /image --qos-reliability best_effort — now the frames pour in',
+        check: () => !!ROS.topics['/image'] && (ROS.topics['/image'].delivered || 0) > 0
+      },
+      {
+        text: 'See it done properly: `ros2 run image_tools showimage` matches the camera already',
+        hint: 'ros2 run image_tools showimage',
+        check: () => H.node('showimage')
+      }
+    ],
+    cheats: ['kill all', 'ros2 run image_tools cam2image', 'ros2 topic echo /image',
+      'ros2 topic info /image -v', 'ros2 topic echo /image --qos-reliability best_effort',
+      'ros2 run image_tools showimage', 'ros2 interface show sensor_msgs/msg/Image'],
+    reward: 120
+  });
+
+  L.push({
+    id: 'pro-namespaces', level: 5, emoji: '🤖🤖', title: 'Two robots, one computer',
+    goal: 'Run the same robot software twice without the two copies fighting.',
+    panel: 'graph',
+    kid:
+      "You have written a robot. Now your school wants **five** of them, all on one network.\n\n" +
+      "If you just start everything twice, both robots publish to `/chatter` and both listen to " +
+      "`/chatter`. Robot 1 obeys commands meant for robot 2. Chaos.\n\n" +
+      "The fix is a **namespace** — a family name that goes in front of everything:\n\n" +
+      "`ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot1`\n\n" +
+      "Now that node is `/robot1/talker`, and it publishes to `/robot1/chatter`. Start another under " +
+      "`/robot2` and they are completely separate — **without changing a single line of code**.\n\n" +
+      "Then start a listener inside `/robot1` and watch it hear only its own robot. Look at the Graph " +
+      "panel: two little worlds, side by side, not touching.\n\n" +
+      "This is how a warehouse runs forty robots off one codebase.",
+    pro:
+      "A namespace prefixes every relative name a node creates — topics, services, actions and " +
+      "parameters. Absolute names (a leading `/`) escape it, which is exactly why shared " +
+      "infrastructure like `/tf` and `/clock` is written absolute. In launch files you set " +
+      "`namespace=` on a Node, or push a whole group with PushRosNamespace. Design tip: keep node " +
+      "topic names relative so an integrator can namespace you later.",
+    tasks: [
+      { text: 'Clear the decks: `kill all`', hint: 'kill all', check: (c) => H.ran(c, /^kill\s+all/) },
+      {
+        text: 'Start a talker inside `/robot1`',
+        hint: 'ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot1',
+        check: () => H.topic('/robot1/chatter')
+      },
+      {
+        text: 'Start a second one inside `/robot2`',
+        hint: 'ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot2',
+        check: () => H.topic('/robot2/chatter')
+      },
+      {
+        text: 'Prove they are separate: `ros2 topic list`',
+        hint: 'ros2 topic list — you should see /robot1/chatter AND /robot2/chatter',
+        check: (c) => H.ran(c, /^ros2\s+topic\s+list/) && H.topic('/robot1/chatter') && H.topic('/robot2/chatter')
+      },
+      {
+        text: 'Put a listener inside `/robot1` and check it only hears robot 1',
+        hint: 'ros2 run demo_nodes_cpp listener --ros-args -r __ns:=/robot1',
+        check: () => {
+          const n = ROS.findNode('/robot1/listener');
+          return !!n && (ROS.topics['/robot1/chatter'] || {}).delivered > 0;
+        }
+      }
+    ],
+    cheats: ['kill all',
+      'ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot1',
+      'ros2 run demo_nodes_cpp talker --ros-args -r __ns:=/robot2',
+      'ros2 topic list', 'ros2 node list',
+      'ros2 run demo_nodes_cpp listener --ros-args -r __ns:=/robot1'],
+    reward: 120
+  });
+
+  L.push({
     id: 'pro-graduate', level: 5, emoji: '🎓', title: 'Graduation: the real thing',
     goal: 'Take everything you know onto a real computer.',
     panel: 'graph',

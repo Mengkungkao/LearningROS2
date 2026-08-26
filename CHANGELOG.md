@@ -10,6 +10,39 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.3.0] — 2026-08-26  ·  commit `854790c`
+
+QoS is real now — which means the silent failure that stumps everyone the first
+time is something you can reproduce, see, and fix.
+
+### Added
+- **QoS in the simulator.** Every publisher and subscriber carries its own
+  reliability / durability / depth, and delivery honours the offered-vs-requested
+  rule. A RELIABLE subscriber genuinely receives nothing from a BEST_EFFORT
+  publisher — no error, no warning, exactly like the real thing
+- `--qos-reliability`, `--qos-durability` and `--qos-depth` on `ros2 topic pub`
+  and `ros2 topic echo`
+- `ros2 topic info -v` now prints each endpoint's profile separately and names
+  any pair that can never connect
+- `image_tools cam2image` and `image_tools showimage` — a pretend camera
+  publishing BEST_EFFORT on `/image`, and a viewer that matches it. This is how
+  people actually meet the bug: echoing a camera topic and getting silence
+- `sensor_msgs/msg/Image`
+- The code analyser reads QoS out of your Python — a bare depth, a
+  `qos_profile_sensor_data`, or a `QoSProfile(...)` — so your own nodes can hit
+  the same mismatch, and the editor's live readout says which profile you asked for
+- **Lesson 22, "When the wire lies"** — reproduce the camera silence, diagnose it
+  with `topic info -v`, then fix it
+- **Lesson 23, "Two robots, one computer"** — run the same node twice under
+  `/robot1` and `/robot2` and watch them stay separate, without touching the code
+
+### Changed
+- `ros2 topic echo` explains *why* it heard nothing: QoS refusal, no publisher at
+  all, or a publisher that has not sent yet. It used to guess
+
+### Tests
+- 66 checks (up from 61), including the full QoS story and namespace isolation
+
 ## [1.2.0] — 2026-08-26  ·  commit `55fa87e`
 
 Somewhere to go when the lessons run out.
@@ -120,6 +153,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.3.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.0.0
