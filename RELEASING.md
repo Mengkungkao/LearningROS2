@@ -36,6 +36,7 @@ git push origin --tags
 
 | Version | Commit | Summary |
 |---|---|---|
+| v1.4.0 | `e36953a` | Save/load your work, printable cheat sheet |
 | v1.3.0 | `854790c` | QoS in the simulator, plus QoS and namespace lessons |
 | v1.2.0 | `55fa87e` | Challenge mode: 12 open-ended puzzles |
 | v1.1.0 | `2e8fbbb` | Syntax highlighting and a live read of your code |

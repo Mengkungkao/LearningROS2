@@ -324,6 +324,60 @@ const server = http.createServer((req, res) => {
   await page.click('#side-tabs button[data-view="lessons"]');
   await page.waitForTimeout(200);
 
+  // --- backup / restore (v1.4.0)
+  await type('cd ~');
+  await type('echo "my precious notes" > keepme.txt', 400);
+  const stateBefore = await page.evaluate(() => ({ xp: App.xp, chal: Object.keys(App.challengeDone).length }));
+  const snapshot = await page.evaluate(() => JSON.stringify(Backup.collect()));
+  const parsed = JSON.parse(snapshot);
+  check('backup captures files and progress',
+    parsed.format === 1 && parsed.progress.xp === stateBefore.xp && !!parsed.files.root,
+    'format=' + parsed.format);
+  await type('export MY_VAR=hello');
+  await type('printenv MY_VAR', 300);
+  check('backup did not shadow the export builtin', (await out()).trim().endsWith('hello'), await tail(2));
+
+  await page.evaluate(() => { App.hardReset(); });
+  await page.waitForTimeout(700);
+  check('hard reset really wipes',
+    await page.evaluate(() => App.xp === 0 && !VFS.exists('/home/student/keepme.txt')));
+  const restored = await page.evaluate((t) => Backup.restore(t), snapshot);
+  await page.waitForTimeout(300);
+  check('restore brings the files back',
+    restored.ok && await page.evaluate(() => (VFS.readFile('/home/student/keepme.txt') || '').includes('precious')),
+    JSON.stringify(restored.error || ''));
+  check('restore brings the progress back',
+    await page.evaluate(() => App.xp) === stateBefore.xp &&
+    await page.evaluate(() => Object.keys(App.challengeDone).length) === stateBefore.chal);
+  for (const junk of ['not json', '{"format":99,"files":{"root":{}}}',
+                      '{"format":1,"files":{"root":{"type":"dir","children":{"x":{"type":"file"}}}}}']) {
+    const r = await page.evaluate((x) => Backup.restore(x), junk);
+    check('a damaged backup is refused, not loaded', r.ok === false && !!r.error, junk.slice(0, 30));
+  }
+
+  /* restore rebuilds the ROS world, so the shell is unsourced again —
+     exactly what the app tells you. Do what it says. */
+  await type('ros2 node list');
+  check('after a restore, ros2 needs sourcing again (and says so)',
+    (await out()).includes('source /opt/ros/jazzy/setup.bash'), await tail(3));
+  await type('source /opt/ros/jazzy/setup.bash');
+
+  // --- printable cheat sheet (v1.4.0)
+  const sheet = await browser.newPage();
+  const sheetErrors = [];
+  sheet.on('pageerror', e => sheetErrors.push(e.message));
+  await sheet.goto('http://localhost:' + PORT + '/cheatsheet.html', { waitUntil: 'networkidle' });
+  const sheetInfo = await sheet.evaluate(() => ({
+    version: (document.getElementById('v') || {}).textContent,
+    sections: document.querySelectorAll('section').length,
+    codes: document.querySelectorAll('code').length
+  }));
+  check('cheat sheet renders with the current version',
+    sheetInfo.sections >= 8 && sheetInfo.codes > 50 && /^v\d+\.\d+\.\d+$/.test(sheetInfo.version || ''),
+    JSON.stringify(sheetInfo));
+  check('cheat sheet has no errors', sheetErrors.length === 0, sheetErrors.join(' | '));
+  await sheet.close();
+
   // --- misc UX
   await type('help');
   check('help lists commands', (await out()).includes('Commands you can use right now'));

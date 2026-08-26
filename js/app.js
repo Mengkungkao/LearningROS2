@@ -118,6 +118,24 @@
         Term.write('[all nodes stopped — your files are untouched]', 'dim');
         Term.write('');
       });
+      U.$('#btn-backup').addEventListener('click', () => {
+        const r = global.Backup.download();
+        Bus.emit('explain', {
+          kid: 'Saved **' + r.files + ' file(s)** and all your progress into `' + r.name +
+            '`. Look in your Downloads folder. Load it back with the 📂 button, on any computer.',
+          pro: 'Exported a JSON snapshot of the VFS and progress state.'
+        });
+      });
+      U.$('#btn-restoreb').addEventListener('click', () => {
+        global.Backup.pickAndRestore((r) => {
+          if (!r.ok) { alert('Could not load that file.\n\n' + r.error); return; }
+          Bus.emit('explain', {
+            kid: 'Loaded **' + r.summary.files + ' file(s)**, ' + r.summary.lessons + ' finished lesson(s) and ' +
+              r.summary.xp + ' XP. Everything was stopped, so `source` again before using `ros2`.',
+            pro: 'Restored snapshot from ' + r.summary.savedAt + ' (v' + r.summary.version + ').'
+          });
+        });
+      });
       U.$('#btn-sidebar').addEventListener('click', () => {
         document.body.classList.toggle('nav-open');
       });

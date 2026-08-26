@@ -78,6 +78,7 @@ header {
   border-radius: 8px; padding: 7px 11px; font-size: 12px; font-weight: 700; transition: .16s;
 }
 .hbtn:hover { border-color: var(--line2); color: var(--ink); background: #202b44; }
+a.hbtn { text-decoration: none; display: inline-block; line-height: 1; }
 #btn-sidebar { display: none; }
 
 /* ---------- layout ---------------------------------------- */
@@ -549,7 +550,7 @@ body.pro-mode .epro { display: block; margin: 0; padding: 0; border: 0; color: #
   header { gap: 8px; padding: 0 8px; }
   .progress-wrap { display: none; }
   .logo small { display: none; }
-  #btn-restart-world { display: none; }
+  #btn-restart-world, #btn-cheat { display: none; }
 }
 @media (max-width: 640px) {
   header { gap: 6px; padding: 0 6px; }
@@ -559,6 +560,7 @@ body.pro-mode .epro { display: block; margin: 0; padding: 0; border: 0; color: #
   .xp { font-size: 12.5px; }
   #mode-toggle button { padding: 5px 8px; font-size: 11px; }
   #btn-reset { padding: 7px 8px; }
+  #btn-backup, #btn-restoreb { display: none; }
   .tline.banner { display: none; }
   .small-title { display: block; }
   #term-out { font-size: 12.2px; }

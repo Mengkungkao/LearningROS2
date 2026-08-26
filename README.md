@@ -105,7 +105,10 @@ care how you did it.
 
 Tasks check themselves against the *actual state* of the simulator — not against what you
 typed. "Make the turtle move" is ticked when the turtle has genuinely moved, however you
-managed it. Progress, XP and badges are saved in your browser, and so are your files.
+managed it. Progress, XP and badges are saved in your browser, and so are your files. Everything lives
+in that one browser, so **💾 Save** writes it all to a `.json` file you can keep, email to
+yourself, or open on another computer — useful in a school lab where machines get wiped.
+There is also a printable [cheat sheet](cheatsheet.html) covering every command in the course.
 
 ---
 
@@ -171,6 +174,7 @@ Everything you type here works, unchanged, on a real ROS 2 Jazzy install.
 | **↑ / ↓** | command history |
 | **Ctrl+C** | stop `echo`, `hz`, `bag record`, a repeating `pub` |
 | **Ctrl+L** | clear the screen |
+| `backup` · `restore` | save your work to a file · load it back (also the 💾 / 📂 buttons) |
 
 Click any command in a lesson's cheat sheet to drop it into the terminal — you still press
 Enter yourself.
@@ -196,6 +200,8 @@ Plain ES5-ish JavaScript, no framework, no bundler. Each file does one job:
 | `js/highlight.js` | editor syntax colouring (tokenise, then escape) |
 | `js/lessons.js` · `js/lessons2.js` | the curriculum (pure data — easy to extend) |
 | `js/challenges.js` | the 12 open-ended challenges |
+| `js/backup.js` | save/load your whole workspace as one file |
+| `cheatsheet.html` | a printable one-page command reference |
 | `js/app.js` | lesson engine, task checking, XP, badges, saving |
 
 ### Adding a lesson

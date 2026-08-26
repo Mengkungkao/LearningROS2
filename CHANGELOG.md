@@ -10,6 +10,39 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.4.0] — 2026-08-26  ·  commit `e36953a`
+
+Your work stops being trapped in one browser, and there is something to print.
+
+### Added
+- **Save and Load** (`js/backup.js`). 💾 Save writes one `.json` file holding your
+  whole filesystem, lesson and challenge progress, badges, XP and command
+  history; 📂 Load puts it back. Also available as the `backup` and `restore`
+  commands. This is what makes the academy usable in a school lab, where the
+  browser is wiped between sessions, or on a second computer
+- A restored file is untrusted input: the tree is shape-checked and the format
+  version verified before anything is loaded, so a truncated or hand-edited
+  backup is refused with a plain explanation instead of breaking the page
+- **`cheatsheet.html`** — a printable one-page reference covering every command
+  in the course, the build loop, and the four debugging questions. Two columns on
+  screen, tuned page CSS for paper, linked from the header
+
+### Changed
+- The restore path says plainly that the terminal is fresh and needs
+  `source /opt/ros/jazzy/setup.bash` again, since restoring rebuilds the ROS world
+- The file count reported after a restore counts your files, not the pretend
+  `/opt/ros` install
+
+### Notes
+- The backup command is `backup`, not `export` — the shell already has
+  `export NAME=value`, and shadowing it would have broken Lesson 5. There is a
+  test that keeps it that way
+
+### Tests
+- 77 checks (up from 66): backup contents, the export builtin surviving, a hard
+  reset really wiping, restore returning both files and progress, three shapes of
+  damaged backup being refused, and the cheat sheet rendering error-free
+
 ## [1.3.0] — 2026-08-26  ·  commit `854790c`
 
 QoS is real now — which means the silent failure that stumps everyone the first
@@ -153,6 +186,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.4.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.1.0
