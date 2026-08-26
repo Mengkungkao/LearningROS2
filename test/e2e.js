@@ -183,7 +183,7 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(200);
 
   const versionShown = await page.evaluate(() => (document.querySelector('#app-version') || {}).textContent);
-  check('version is shown in the header', versionShown === 'v' + '1.1.0', versionShown);
+  check('version is shown in the header', /^v\d+\.\d+\.\d+$/.test(versionShown || ''), versionShown);
 
   await type('cd ~/ros2_ws');
   await type('colcon build', 700);
@@ -264,6 +264,28 @@ const server = http.createServer((req, res) => {
   check('bag replay reaches a live listener', afterReplay.includes('I heard: [Hello World'), afterReplay.slice(-200));
   await type('kill all');
 
+  // --- challenges (v1.2.0)
+  await page.click('#side-tabs button[data-view="challenges"]');
+  await page.waitForTimeout(250);
+  const cards = await page.evaluate(() => document.querySelectorAll('.chal').length);
+  check('challenge cards render', cards === (await page.evaluate(() => CHALLENGES.length)), 'cards=' + cards);
+  await type('kill all');
+  await type('cd ~');
+  await type('mkdir -p secret/plans');
+  await type('echo "build a robot" > secret/plans/idea.txt', 700);
+  check('challenge solves itself from real state', await page.evaluate(() => !!App.challengeDone['c-folder']));
+  const xpBefore = await page.evaluate(() => App.xp);
+  await type('touch a.log b.log c.log d.log e.log', 700);
+  check('challenge awards its points', await page.evaluate(() => App.xp) === xpBefore + 15,
+    xpBefore + ' -> ' + (await page.evaluate(() => App.xp)));
+  await type('ros2 run turtlesim turtlesim_node', 300);
+  await type('ros2 service call /turtle1/teleport_absolute turtlesim/srv/TeleportAbsolute "{x: 9.5, y: 9.5, theta: 0}"', 800);
+  check('a challenge with several solutions accepts any of them',
+    await page.evaluate(() => !!App.challengeDone['c-corner']));
+  await type('kill all');
+  await page.click('#side-tabs button[data-view="lessons"]');
+  await page.waitForTimeout(200);
+
   // --- misc UX
   await type('help');
   check('help lists commands', (await out()).includes('Commands you can use right now'));
@@ -298,6 +320,7 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(700);
   const survived = await page.evaluate(() => VFS.exists('/home/student/ros2_ws/src/my_robot/setup.py'));
   check('work survives a reload', survived);
+  check('solved challenges survive a reload', await page.evaluate(() => !!App.challengeDone['c-folder']));
   const xp2 = await page.evaluate(() => App.xp);
   check('progress survives a reload', xp2 === xp, xp2 + ' vs ' + xp);
 

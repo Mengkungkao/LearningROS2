@@ -10,6 +10,35 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.2.0] — 2026-08-26  ·  commit `55fa87e`
+
+Somewhere to go when the lessons run out.
+
+### Added
+- **Challenge mode** — a second tab beside Lessons holding 12 puzzles worth 365
+  points. A lesson tells you what to type; a challenge only tells you what must
+  be **true** when you are finished, and every check reads the real state of the
+  simulator, so there is no single right answer:
+  - *Park it in the corner* — get turtle1 past x=9, y=9. Drive there, or teleport
+  - *The sound of silence* — a listener hearing nothing while a talker runs, proved
+    by `/chatter` having a subscriber and no publisher
+  - *Draw a square* — detected by finding four corners in the actual pen trail
+  - *The relay* — build a node that subscribes to one topic and publishes to
+    another, with traffic flowing on both wires
+  - *Your own words* — invent a message type with three or more fields, build it,
+    and get a real message of that type onto a topic
+- A **Challenge Champion** badge for solving all twelve
+- Points count towards the same XP as lessons; solved challenges are saved
+
+### Changed
+- turtlesim's "Oh no! I hit the wall!" warning is rate-limited to once a second
+  per turtle. Real turtlesim shouts it every frame, which buried everything else
+
+### Tests
+- 61 checks (up from 56): cards render, a challenge solves itself from real state,
+  points are awarded once, alternative solutions are accepted, and solved
+  challenges survive a reload
+
 ## [1.1.0] — 2026-08-26  ·  commit `2e8fbbb`
 
 Writing code in the editor now teaches you something while you type it.
@@ -91,5 +120,6 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.2.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.0.0

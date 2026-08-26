@@ -17,6 +17,8 @@
     history: [],
     done: Object.create(null),
     taskDone: Object.create(null),
+    challengeDone: Object.create(null),
+    view: 'lessons',
     xp: 0,
     mode: 'kid',
     badges: Object.create(null),
@@ -30,6 +32,7 @@
       Panels.init();
 
       this.buildSidebar();
+      this.buildChallenges();
       this.bindChrome();
 
       Bus.on('command', (c) => { this.history.push(c.line); this.check(); this.saveSoon(); });
@@ -52,6 +55,7 @@
       const s = U.Store.get(SAVE_KEY, null);
       if (!s) return;
       this.done = s.done || Object.create(null);
+      this.challengeDone = s.challengeDone || Object.create(null);
       this.xp = s.xp || 0;
       this.badges = s.badges || Object.create(null);
       this.mode = s.mode || 'kid';
@@ -70,8 +74,8 @@
 
     save() {
       U.Store.set(SAVE_KEY, {
-        done: this.done, xp: this.xp, badges: this.badges, mode: this.mode,
-        fs: VFS.root, cwd: VFS.cwd
+        done: this.done, challengeDone: this.challengeDone, xp: this.xp,
+        badges: this.badges, mode: this.mode, fs: VFS.root, cwd: VFS.cwd
       });
     },
 
@@ -84,12 +88,14 @@
       VFS.reset();
       this.done = Object.create(null);
       this.taskDone = Object.create(null);
+      this.challengeDone = Object.create(null);
       this.badges = Object.create(null);
       this.xp = 0;
       this.history = [];
       Term.clear();
       Term.banner();
       this.buildSidebar();
+      this.buildChallenges();
       this.openLesson(this.lessons[0].id, true);
       this.renderProgress();
     },
@@ -115,6 +121,9 @@
       U.$('#btn-sidebar').addEventListener('click', () => {
         document.body.classList.toggle('nav-open');
       });
+      U.$$('#side-tabs button').forEach((b) => {
+        b.addEventListener('click', () => this.setView(b.getAttribute('data-view')));
+      });
       U.$('#lesson-prev').addEventListener('click', () => this.step(-1));
       U.$('#lesson-next').addEventListener('click', () => this.step(1));
 
@@ -125,6 +134,83 @@
           Bus.emit('term:type', { text: cmd, run: b.getAttribute('data-run') !== 'no' });
         });
       });
+    },
+
+    setView(v) {
+      this.view = v;
+      U.$$('#side-tabs button').forEach((b) => b.classList.toggle('on', b.getAttribute('data-view') === v));
+      U.$('#lesson-view').classList.toggle('off', v !== 'lessons');
+      U.$('#challenge-view').classList.toggle('on', v === 'challenges');
+      if (v === 'challenges') this.check(true);
+    },
+
+    /* ---- challenges ------------------------------------ */
+    buildChallenges() {
+      const host = U.$('#challenge-list');
+      if (!host) return;
+      host.innerHTML = '';
+      (global.CHALLENGES || []).forEach((c) => {
+        host.appendChild(el('div', { class: 'chal' + (this.challengeDone[c.id] ? ' ok' : ''), 'data-id': c.id }, [
+          el('div', { class: 'chead' }, [
+            el('span', { class: 'cemoji', text: c.emoji }),
+            el('span', { class: 'ctitle', text: c.title }),
+            el('span', { class: 'cpts', text: '+' + c.points }),
+            el('span', { class: 'ctick', text: this.challengeDone[c.id] ? '✓' : '' })
+          ]),
+          el('div', { class: 'ctask', html: Panels.md(c.task) }),
+          el('button', {
+            class: 'thint',
+            onClick: (e) => { const n = e.target.nextSibling; if (n) n.classList.toggle('show'); }
+          }, ['stuck?']),
+          el('div', { class: 'hinttext', html: Panels.md(c.hint || '') })
+        ]));
+      });
+      this.renderChallengeScore();
+    },
+
+    renderChallengeScore() {
+      const all = global.CHALLENGES || [];
+      const done = all.filter((c) => this.challengeDone[c.id]);
+      const pts = done.reduce((a, c) => a + c.points, 0);
+      const total = all.reduce((a, c) => a + c.points, 0);
+      const box = U.$('#challenge-score');
+      if (box) box.textContent = done.length + ' of ' + all.length + ' solved  ·  ' + pts + ' / ' + total + ' points';
+    },
+
+    checkChallenges() {
+      const all = global.CHALLENGES || [];
+      let changed = false;
+      all.forEach((c) => {
+        if (this.challengeDone[c.id]) return;
+        let ok = false;
+        try { ok = !!c.check(); } catch (e) { ok = false; }
+        if (!ok) return;
+        this.challengeDone[c.id] = true;
+        this.xp += c.points;
+        changed = true;
+        const card = U.$('.chal[data-id="' + c.id + '"]');
+        if (card) {
+          card.classList.add('ok', 'pop');
+          const tick = card.querySelector('.ctick');
+          if (tick) tick.textContent = '✓';
+          setTimeout(() => card.classList.remove('pop'), 700);
+        }
+        Bus.emit('explain', {
+          kid: '🏆 Challenge solved: **' + c.title + '**  (+' + c.points + ' XP)',
+          pro: 'Challenge ' + c.id + ' satisfied.'
+        });
+        beep(760, 0.06);
+        setTimeout(() => beep(1140, 0.1), 90);
+      });
+      if (changed) {
+        this.renderChallengeScore();
+        this.renderProgress();
+        this.save();
+        if (all.every((c) => this.challengeDone[c.id])) {
+          this.badges.champion = 'Challenge Champion';
+          this.renderProgress();
+        }
+      }
     },
 
     setMode(m) {
@@ -268,6 +354,7 @@
 
     /* ---- checking your work ---------------------------- */
     check(silent) {
+      this.checkChallenges();
       const lesson = this.byId(this.current);
       if (!lesson) return;
       const ctx = {
@@ -361,7 +448,7 @@
       bwrap.innerHTML = '';
       const icons = {
         shell: '🐚', turtle: '🐢', graph: '🕸️', coder: '🐍', driver: '🎮',
-        launch: '🚀', iface: '✉️', grad: '🎓', lvl1: '1️⃣', lvl2: '2️⃣', lvl3: '3️⃣', lvl4: '4️⃣', lvl5: '5️⃣'
+        launch: '🚀', iface: '✉️', grad: '🎓', champion: '🏆', lvl1: '1️⃣', lvl2: '2️⃣', lvl3: '3️⃣', lvl4: '4️⃣', lvl5: '5️⃣'
       };
       Object.keys(this.badges).forEach((k) => {
         bwrap.appendChild(el('span', { class: 'badge2', title: this.badges[k], text: icons[k] || '🏅' }));

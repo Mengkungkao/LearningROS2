@@ -22,6 +22,13 @@ git clone https://github.com/Mengkungkao/LearningROS2.git
 cd LearningROS2
 ```
 
+Running the tests (optional, needs Node):
+
+```bash
+npm install && npx playwright install chromium
+npm test          # 61 end-to-end checks against a real browser
+```
+
 Then either:
 
 * **Double-click `index.html`** — it just opens and works, or
@@ -86,6 +93,14 @@ robot · launch files
 **Level 5 · Pro moves**
 Custom `.msg` interfaces · parameters in your own code · `ros2 bag` record & replay ·
 the four questions that debug any ROS 2 problem · TF frames · graduation
+
+### 🏆 Challenges
+
+A second tab holds 12 puzzles worth 365 points. A lesson tells you what to type; a
+challenge only tells you what must be **true** when you are done — *"get turtle1 past
+x=9 and y=9"*, *"draw something with four corners"*, *"build a node that listens to one
+topic and publishes to another"*. Drive there or teleport there; the checker does not
+care how you did it.
 
 Tasks check themselves against the *actual state* of the simulator — not against what you
 typed. "Make the turtle move" is ticked when the turtle has genuinely moved, however you
@@ -176,7 +191,9 @@ Plain ES5-ish JavaScript, no framework, no bundler. Each file does one job:
 | `js/analyze.js` | reads your Python and turns it into a running node |
 | `js/terminal.js` | the terminal UI: history, Tab-completion, Ctrl+C, streaming |
 | `js/graph.js` · `js/sim.js` · `js/panels.js` | the live views |
+| `js/highlight.js` | editor syntax colouring (tokenise, then escape) |
 | `js/lessons.js` · `js/lessons2.js` | the curriculum (pure data — easy to extend) |
+| `js/challenges.js` | the 12 open-ended challenges |
 | `js/app.js` | lesson engine, task checking, XP, badges, saving |
 
 ### Adding a lesson

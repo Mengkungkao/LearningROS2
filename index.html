@@ -39,11 +39,28 @@
 
   <!-- ============ LESSONS ============ -->
   <aside id="lessons">
-    <div id="lesson-nav"></div>
-    <div id="lesson-body"></div>
-    <div class="lnav">
-      <button id="lesson-prev">← Back</button>
-      <button id="lesson-next">Next lesson →</button>
+    <div id="side-tabs">
+      <button data-view="lessons" class="on">📚 Lessons</button>
+      <button data-view="challenges">🏆 Challenges</button>
+    </div>
+
+    <div id="lesson-view">
+      <div id="lesson-nav"></div>
+      <div id="lesson-body"></div>
+      <div class="lnav">
+        <button id="lesson-prev">← Back</button>
+        <button id="lesson-next">Next lesson →</button>
+      </div>
+    </div>
+
+    <div id="challenge-view">
+      <div id="challenge-intro">
+        <h2>🏆 Challenges</h2>
+        <p>No instructions this time — just something that has to be <b>true</b> when you are done.
+           There is more than one way to solve every single one.</p>
+        <div id="challenge-score"></div>
+      </div>
+      <div id="challenge-list"></div>
     </div>
   </aside>
 
@@ -185,6 +202,7 @@
 <script src="js/panels.js"></script>
 <script src="js/lessons.js"></script>
 <script src="js/lessons2.js"></script>
+<script src="js/challenges.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -249,8 +249,13 @@
         const nx = t.x + t.lin * Math.cos(t.theta) * dt;
         const ny = t.y + t.lin * Math.sin(t.theta) * dt;
         const cx = clamp(nx, 0, FIELD), cy = clamp(ny, 0, FIELD);
+        /* real turtlesim shouts this every frame; once a second is plenty
+           to make the point without burying the rest of the output */
         if ((cx !== nx || cy !== ny) && t.lin !== 0) {
-          node.log('Oh no! I hit the wall! (Clamping from [x=' + global.U.f(nx) + ', y=' + global.U.f(ny) + '])', 'WARN');
+          if (ROS.time() - (t.lastWallWarn || -99) > 1) {
+            t.lastWallWarn = ROS.time();
+            node.log('Oh no! I hit the wall! (Clamping from [x=' + global.U.f(nx) + ', y=' + global.U.f(ny) + '])', 'WARN');
+          }
         }
         t.x = cx; t.y = cy;
 

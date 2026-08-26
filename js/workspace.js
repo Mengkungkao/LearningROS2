@@ -602,6 +602,7 @@
       if (!bag.messages.length) { io.write('That bag is empty.', 'hint'); return { code: 0 }; }
       io.write('[INFO] [rosbag2_player]: Set rate to 1');
       io.write('[INFO] [rosbag2_player]: Playing back ' + bag.messages.length + ' messages.');
+      bag.played = (bag.played || 0) + 1;
       const start = bag.messages[0].t;
       const t0 = Date.now();
       const node = global.ROS2CLI.cliNode('pub');
