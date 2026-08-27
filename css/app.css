@@ -552,14 +552,17 @@ body.pro-mode .epro { display: block; margin: 0; padding: 0; border: 0; color: #
   .logo small { display: none; }
   #btn-restart-world, #btn-cheat { display: none; }
 }
+/* A phone is 320-393px wide but the full header wants 414px, which pushed
+   Reset off the screen entirely. Drop words, never buttons. */
 @media (max-width: 640px) {
   header { gap: 6px; padding: 0 6px; }
+  .wordmark, .mlabel { display: none; }
+  #mode-toggle button { padding: 5px 9px; font-size: 13px; }
   .logo br { display: none; }
   .logo span:not(.bot) { font-size: 14px; }
   #badges { display: none; }
   .xp { font-size: 12.5px; }
-  #mode-toggle button { padding: 5px 8px; font-size: 11px; }
-  #btn-reset { padding: 7px 8px; }
+  #btn-reset { padding: 7px 9px; }
   #btn-backup, #btn-restoreb { display: none; }
   .tline.banner { display: none; }
   .small-title { display: block; }

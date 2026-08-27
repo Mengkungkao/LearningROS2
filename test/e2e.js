@@ -362,6 +362,22 @@ const server = http.createServer((req, res) => {
     (await out()).includes('source /opt/ros/jazzy/setup.bash'), await tail(3));
   await type('source /opt/ros/jazzy/setup.bash');
 
+  // --- the header must fit a phone (v1.4.1)
+  const phone = await browser.newPage();
+  await phone.setViewportSize({ width: 320, height: 640 });
+  await phone.goto('http://localhost:' + PORT + '/', { waitUntil: 'networkidle' });
+  await phone.waitForTimeout(300);
+  const fits = await phone.evaluate(() => {
+    const vw = window.innerWidth;
+    const r = document.querySelector('#btn-reset').getBoundingClientRect();
+    const m = document.querySelector('#btn-sidebar').getBoundingClientRect();
+    return { vw, headerNeeds: document.querySelector('header').scrollWidth,
+             resetVisible: r.right <= vw + 1 && r.left >= -1, menuVisible: m.right <= vw + 1 };
+  });
+  check('every header button is reachable on a 320px phone',
+    fits.headerNeeds <= fits.vw + 1 && fits.resetVisible && fits.menuVisible, JSON.stringify(fits));
+  await phone.close();
+
   // --- printable cheat sheet (v1.4.0)
   const sheet = await browser.newPage();
   const sheetErrors = [];

@@ -10,6 +10,19 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.4.1] — 2026-08-27  ·  commit `537b017`
+
+### Fixed
+- **The header did not fit on a phone.** It needed 414px, but phones give
+  320–393px, so the ↺ Reset button sat off the right edge where it could not be
+  tapped — on every phone tested, including a 320px iPhone SE. Below 640px the
+  wordmark "Academy" and the Simple/Pro labels now collapse to their emoji.
+  Words go; buttons stay
+
+### Tests
+- 78 checks (up from 77): a 320px viewport must be able to reach every header
+  button, so this cannot regress
+
 ## [1.4.0] — 2026-08-26  ·  commit `e36953a`
 
 Your work stops being trapped in one browser, and there is something to print.
@@ -186,6 +199,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.4.1]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.1
 [1.4.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.2.0
