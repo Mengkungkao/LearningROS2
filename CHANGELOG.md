@@ -10,6 +10,48 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.5.0] — 2026-08-28  ·  commit `639c1b3`
+
+Watch the cause and the effect at the same moment.
+
+### Added
+- **Split view.** The right-hand column can hold two panels at once, each with
+  its own tabs. The ⫽ Split button opens it; a *Watch it happen* button under
+  the turtle sets up the pairing that teaches the most — **Robot on top, Graph
+  underneath**. Press an arrow key and you see all three parts of one event
+  together: the message going out, a green dot crossing the wire, and the turtle
+  moving when it arrives
+- **"The message your press just sent"** — a strip under the turtle spelling out
+  the actual Twist behind every button press: the topic, the type, who sent it,
+  and `linear.x` / `angular.z` with the live numbers picked out and read back in
+  words ("→ forwards", "↺ turning left"). It reacts to *any* source, so it works
+  for the arrow keys, for `ros2 topic pub`, and for the student's own driver node
+- Topic pills in the graph glow as traffic crosses them, so the eye follows the
+  message rather than hunting for it
+- **Magnetic dividers.** Every divider — lessons, live views, the explanation
+  feed, and the split itself — can be dragged. Each pulls towards sensible sizes
+  and clicks into place with a guide line and a label (`¼`, `⅓`, `half`, `⅔`,
+  `¾`, `wide`, `default`). **Hold Shift** to switch the magnet off and place it
+  exactly. Double-click resets. Arrow keys work when a divider has focus, and
+  sizes are remembered
+- Dragging the lessons or explanation divider nearly shut closes that panel
+
+### Changed
+- A panel can only be in one pane at a time, so asking pane B for the Robot
+  *swaps* the two panes rather than making a panel vanish
+- Panel suggestions (the "follow along automatically" behaviour) only ever touch
+  the primary pane; a pane you arranged on purpose is left alone
+- Tab labels collapse to icons automatically whenever the strip would otherwise
+  scroll, and the robot's controls get more compact in a short split pane
+- Lesson 8 now mentions the split, and adds `ros2 topic echo /turtle1/cmd_vel`
+  to its cheat sheet — you can watch your own key presses arrive as text
+
+### Tests
+- 85 checks (up from 78): both panels visible with real canvas space, a button
+  press producing the right message trace, panes swapping rather than
+  duplicating, dividers snapping, Shift defeating the magnet, and sizes
+  surviving a reload
+
 ## [1.4.1] — 2026-08-27  ·  commit `537b017`
 
 ### Fixed
@@ -199,6 +241,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.5.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.5.0
 [1.4.1]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.1
 [1.4.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.3.0

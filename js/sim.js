@@ -39,6 +39,17 @@
       Bus.on('sim:teleop', () => this.updateHint());
       Bus.on('sim:start', () => this.updateHint());
       Bus.on('sim:stop', () => this.updateHint());
+      Bus.on('dock:applied', () => this.updateHint());
+
+      /* Every command the robot is given, written out in full. This is
+         the whole point of the Robot+Graph split: press a button, and
+         see the exact message that press produced. */
+      this.wire = U.$('#sim-wire', host);
+      this.wireBody = U.$('#sim-wire-body', host);
+      Bus.on('ros:msg', (m) => {
+        if (!/\/cmd_vel$/.test(m.topic)) return;
+        this.showWire(m);
+      });
       window.addEventListener('resize', () => this.resize());
 
       this.resize();
@@ -79,6 +90,33 @@
       ROS.teleopDrive(lin, ang);
     },
 
+    /** Render the Twist that was just sent, with the live numbers picked out. */
+    showWire(m) {
+      if (!this.wireBody) return;
+      const lin = (m.msg.linear || {}), ang = (m.msg.angular || {});
+      const num = (v) => {
+        const n = Number(v) || 0;
+        const cls = n === 0 ? 'wzero' : 'wval';
+        return '<span class="' + cls + '">' + (Math.round(n * 100) / 100).toFixed(2) + '</span>';
+      };
+      const who = m.from ? '<span class="wtype">from ' + U.escapeHtml(m.from) + '</span>' : '';
+      this.wireBody.innerHTML =
+        '<span class="wtopic">' + U.escapeHtml(m.topic) + '</span> ' +
+        '<span class="wtype">geometry_msgs/msg/Twist</span> ' + who + '<br>' +
+        'linear.x ' + num(lin.x) + '  ·  angular.z ' + num(ang.z) +
+        '<span class="wtype">' +
+        (Number(lin.x) ? (Number(lin.x) > 0 ? '  → forwards' : '  → backwards') : '') +
+        (Number(ang.z) ? (Number(ang.z) > 0 ? '  ↺ turning left' : '  ↻ turning right') : '') +
+        (!Number(lin.x) && !Number(ang.z) ? '  → stop' : '') +
+        '</span>';
+
+      if (this.wire) {
+        this.wire.classList.remove('pulse');
+        void this.wire.offsetWidth;         // restart the animation
+        this.wire.classList.add('pulse');
+      }
+    },
+
     updateHint() {
       const teleop = ROS.teleop && ROS.teleop.active;
       const running = ROS.world.running;
@@ -93,6 +131,17 @@
       } else {
         this.hint.innerHTML = '<b class="live">Listening to your arrow keys →</b> every press sends a real ' +
           '<code>geometry_msgs/msg/Twist</code> on <code>/turtle1/cmd_vel</code>';
+      }
+
+      /* offer the side-by-side view exactly when it would teach something */
+      if (running && !global.Dock.isVisible('graph')) {
+        const b = document.createElement('button');
+        b.className = 'watchbtn';
+        b.textContent = '⫽ Watch it happen (Robot + Graph)';
+        b.title = 'Show the graph beside the robot, so you can see the message travel';
+        b.addEventListener('click', () => global.Dock.watchItHappen());
+        this.hint.appendChild(document.createElement('br'));
+        this.hint.appendChild(b);
       }
     },
 

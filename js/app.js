@@ -118,6 +118,12 @@
         Term.write('[all nodes stopped — your files are untouched]', 'dim');
         Term.write('');
       });
+      U.$('#explain-bigger').addEventListener('click', () => {
+        const L = global.Layout;
+        const big = L.def('explain') * 2;
+        L.set('explain', L.values.explain >= big - 10 ? L.def('explain') : big);
+      });
+
       U.$('#btn-backup').addEventListener('click', () => {
         const r = global.Backup.download();
         Bus.emit('explain', {

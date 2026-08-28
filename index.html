@@ -67,6 +67,9 @@
     </div>
   </aside>
 
+  <div class="gutter col" data-gutter="lessons" tabindex="0" role="separator"
+       aria-orientation="vertical" aria-label="resize the lessons panel" title="drag to resize · double-click to reset"></div>
+
   <!-- ============ TERMINAL ============ -->
   <section id="centre">
     <div id="terminal">
@@ -106,23 +109,27 @@
       </div>
     </div>
 
+    <div class="gutter row" data-gutter="explain" tabindex="0" role="separator"
+         aria-orientation="horizontal" aria-label="resize the explanation panel" title="drag to resize · double-click to reset"></div>
+
     <div id="explain">
-      <div class="ehead"><span class="dot"></span> What just happened?</div>
+      <div class="ehead">
+        <span class="dot"></span> What just happened?
+        <button id="explain-bigger" title="make this bigger / smaller">⤢</button>
+      </div>
       <div id="explain-feed"></div>
     </div>
   </section>
 
+  <div class="gutter col" data-gutter="views" tabindex="0" role="separator"
+       aria-orientation="vertical" aria-label="resize the live views panel" title="drag to resize · double-click to reset"></div>
+
   <!-- ============ LIVE VIEWS ============ -->
   <section id="views">
-    <div id="view-tabs">
-      <button data-panel="files" class="on">📁 Files</button>
-      <button data-panel="editor">📝 Editor</button>
-      <button data-panel="graph">🕸️ Graph</button>
-      <button data-panel="robot">🐢 Robot</button>
-      <button data-panel="inspect">📊 Inspect</button>
-    </div>
 
-    <div class="panels">
+    <div class="pane" id="pane-a">
+      <div class="panetabs" id="tabs-a"></div>
+      <div class="panebody" id="body-a">
 
       <!-- Files -->
       <div class="panel on" id="panel-files">
@@ -170,6 +177,10 @@
           <button class="down" data-dir="down" title="backward">▼</button>
           <button class="right" data-dir="right" title="turn right">▶</button>
         </div>
+        <div id="sim-wire">
+          <div class="wtitle">the message your press just sent</div>
+          <div id="sim-wire-body"><span class="widle">press a button, or an arrow key, to see it</span></div>
+        </div>
         <div id="sim-hint"></div>
       </div>
 
@@ -181,7 +192,17 @@
         </div>
       </div>
 
+      </div>
     </div>
+
+    <div class="gutter row" id="gutter-split" data-gutter="split" tabindex="0" role="separator"
+         aria-orientation="horizontal" aria-label="resize the split" title="drag to resize · double-click for 50/50"></div>
+
+    <div class="pane" id="pane-b">
+      <div class="panetabs" id="tabs-b"></div>
+      <div class="panebody" id="body-b"></div>
+    </div>
+
   </section>
 
 </main>
@@ -202,6 +223,8 @@
 <script src="js/terminal.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/graph.js"></script>
+<script src="js/dock.js"></script>
+<script src="js/layout.js"></script>
 <script src="js/panels.js"></script>
 <script src="js/lessons.js"></script>
 <script src="js/lessons2.js"></script>

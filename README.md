@@ -62,6 +62,16 @@ Type `ros2 topic pub /turtle1/cmd_vel ...` and the turtle in the **Robot** panel
 while green dots fly down the wire in the Graph showing each real message.
 Delete something and watch it vanish.
 
+### ⫽ Two panels at once
+
+The right column splits. Put the **Robot** in one half and the **Graph** in the other, press an
+arrow key, and one event shows up in three places at the same moment: a strip under the turtle
+spells out the exact `Twist` your press produced, a green dot crosses the wire in the graph, and
+the turtle moves when it arrives. That is the whole idea of ROS 2 made visible in one screen.
+
+Every divider is draggable and **magnetic** — it pulls towards halves, thirds and quarters and
+clicks into place with a label. Hold **Shift** for a free placement, double-click to reset.
+
 Every command also writes a plain-English note into **"What just happened?"** — and a
 toggle in the header switches every explanation in the app between:
 
@@ -197,6 +207,8 @@ Plain ES5-ish JavaScript, no framework, no bundler. Each file does one job:
 | `js/analyze.js` | reads your Python and turns it into a running node |
 | `js/terminal.js` | the terminal UI: history, Tab-completion, Ctrl+C, streaming |
 | `js/graph.js` · `js/sim.js` · `js/panels.js` | the live views |
+| `js/dock.js` | which panel lives in which pane |
+| `js/layout.js` | draggable, magnetic dividers |
 | `js/highlight.js` | editor syntax colouring (tokenise, then escape) |
 | `js/lessons.js` · `js/lessons2.js` | the curriculum (pure data — easy to extend) |
 | `js/challenges.js` | the 12 open-ended challenges |

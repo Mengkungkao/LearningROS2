@@ -262,7 +262,12 @@
       "2. `ros2 run turtlesim turtle_teleop_key` — turns your arrow keys into robot commands\n\n" +
       "Then **click on the blue square** in the Robot panel and press the arrow keys. Draw something!\n\n" +
       "Look at the Graph panel afterwards: your key presses become messages on `/turtle1/cmd_vel`, " +
-      "and the turtle node listens to them. That is exactly how a real robot's wheels are driven.",
+      "and the turtle node listens to them. That is exactly how a real robot's wheels are driven.\n\n" +
+      "**See both at once.** Press the **⫽ Split** button above the Robot panel (or the " +
+      "*Watch it happen* button under the turtle). The Robot goes on top, the Graph underneath. " +
+      "Now every arrow key press shows you three things in the same moment: the exact message that " +
+      "went out, a green dot crossing the wire, and the turtle moving when it arrives. " +
+      "Drag the divider between them — it snaps to halves and thirds.",
     pro:
       "turtlesim_node subscribes to /turtle1/cmd_vel (geometry_msgs/msg/Twist) and publishes " +
       "/turtle1/pose. teleop_key publishes Twist messages on key events. A real differential-drive base " +
@@ -274,7 +279,7 @@
       { text: 'Find the wheel channel: `ros2 topic list`', hint: 'Look for /turtle1/cmd_vel in the list', check: (c) => H.ran(c, /^ros2\s+topic\s+list/) && H.topic('/turtle1/cmd_vel') }
     ],
     cheats: ['ros2 run turtlesim turtlesim_node', 'ros2 run turtlesim turtle_teleop_key',
-      'ros2 topic list', 'ros2 topic echo /turtle1/pose'],
+      'ros2 topic list', 'ros2 topic echo /turtle1/cmd_vel', 'ros2 topic echo /turtle1/pose'],
     reward: 45
   });
 

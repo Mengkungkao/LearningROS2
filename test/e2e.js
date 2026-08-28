@@ -117,7 +117,7 @@ const server = http.createServer((req, res) => {
   check('interface show expands', (await out()).includes('float64 x'), await tail(10));
 
   // --- screenshot the robot panel while it has drawings
-  await page.click('#view-tabs button[data-panel="robot"]');
+  await page.click('#tabs-a button[data-panel="robot"]');
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'robot.png') });
 
@@ -139,7 +139,7 @@ const server = http.createServer((req, res) => {
 
   // --- editor: highlighting, live insight, and escaping (v1.1.0)
   await page.evaluate(() => { U.Bus.emit('editor:open', { path: '/home/student/ros2_ws/src/my_robot/my_robot/talker_node.py' }); });
-  await page.click('#view-tabs button[data-panel="editor"]');
+  await page.click('#tabs-a button[data-panel="editor"]');
   await page.waitForTimeout(300);
   const metrics = await page.evaluate(() => {
     const a = getComputedStyle(document.querySelector('#editor-area'));
@@ -229,7 +229,7 @@ const server = http.createServer((req, res) => {
   const drove = await page.evaluate(() => { const t = ROS.world.turtles.turtle1; return t ? Math.abs(t.x-5.544)+Math.abs(t.y-5.544) : 0; });
   check('my driver node moves the turtle', drove > 0.3, 'delta=' + drove);
 
-  await page.click('#view-tabs button[data-panel="graph"]');
+  await page.click('#tabs-a button[data-panel="graph"]');
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(SHOTS, 'graph.png') });
 
@@ -362,6 +362,85 @@ const server = http.createServer((req, res) => {
     (await out()).includes('source /opt/ros/jazzy/setup.bash'), await tail(3));
   await type('source /opt/ros/jazzy/setup.bash');
 
+  // --- split view + magnetic dividers (v1.5.0)
+  await type('kill all');
+  await type('ros2 run turtlesim turtlesim_node', 500);
+  await type('ros2 run turtlesim turtle_teleop_key', 400);
+  await page.evaluate(() => Dock.watchItHappen());
+  await page.waitForTimeout(600);
+  const split = await page.evaluate(() => ({
+    split: Dock.split,
+    robotIn: document.querySelector('#panel-robot').parentNode.id,
+    graphIn: document.querySelector('#panel-graph').parentNode.id,
+    bothOn: document.querySelector('#panel-robot').classList.contains('on') &&
+            document.querySelector('#panel-graph').classList.contains('on'),
+    sim: Math.round(document.querySelector('#sim-canvas').getBoundingClientRect().width),
+    graph: Math.round(document.querySelector('#graph-canvas').getBoundingClientRect().width)
+  }));
+  check('robot and graph show at the same time',
+    split.split && split.robotIn === 'body-a' && split.graphIn === 'body-b' && split.bothOn,
+    JSON.stringify(split));
+  check('both canvases get real space in the split', split.sim > 120 && split.graph > 200, JSON.stringify(split));
+
+  // a d-pad press must produce a visible message trace
+  const upBtn = await page.$('.dpad button.up');
+  await upBtn.dispatchEvent('mousedown');
+  await page.waitForTimeout(220);
+  await upBtn.dispatchEvent('mouseup');
+  await page.waitForTimeout(400);
+  const trace = await page.evaluate(() => document.querySelector('#sim-wire-body').innerText.replace(/\s+/g, ' '));
+  check('pressing a button shows the message it sent',
+    /cmd_vel/.test(trace) && /Twist/.test(trace) && /linear\.x 2\.00/.test(trace) && /forwards/.test(trace), trace);
+
+  // a panel can only live in one pane: asking pane B for the robot swaps them
+  await page.click('#tabs-b button[data-panel="robot"]');
+  await page.waitForTimeout(400);
+  const swapped = await page.evaluate(() => ({ a: Dock.at.a, b: Dock.at.b,
+    robotIn: document.querySelector('#panel-robot').parentNode.id }));
+  check('moving a panel across swaps rather than duplicates',
+    swapped.b === 'robot' && swapped.a === 'graph' && swapped.robotIn === 'body-b', JSON.stringify(swapped));
+
+  // magnets
+  const snapTest = await page.evaluate(async () => {
+    const out = {};
+    const el = document.querySelector('.gutter[data-gutter="lessons"]');
+    const r = el.getBoundingClientRect();
+    const send = (type, x, extra) => el.dispatchEvent(Object.assign(
+      new MouseEvent(type, { bubbles: true, clientX: x, clientY: r.top + 10, button: 0 }), extra || {}));
+    const win = (type, x, shift) => window.dispatchEvent(new MouseEvent(type,
+      { bubbles: true, clientX: x, clientY: r.top + 10, shiftKey: !!shift }));
+
+    Layout.set('lessons', 320);
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + 3, clientY: r.top + 10, button: 0 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 3 + 74, clientY: r.top + 10 }));
+    out.snapped = Layout.values.lessons;
+    out.guideHit = document.querySelector('#snap-guide').classList.contains('hit');
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.left + 77, clientY: r.top + 10 }));
+
+    Layout.set('lessons', 320);
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + 3, clientY: r.top + 10, button: 0 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 3 + 74, clientY: r.top + 10, shiftKey: true }));
+    out.unsnapped = Layout.values.lessons;
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.left + 77, clientY: r.top + 10 }));
+    Layout.set('lessons', Layout.def('lessons'));
+    void send; void win;
+    return out;
+  });
+  check('a divider snaps to the nearest sensible size',
+    snapTest.snapped === 400 && snapTest.guideHit, JSON.stringify(snapTest));
+  check('holding Shift turns the magnet off',
+    snapTest.unsnapped === 394, JSON.stringify(snapTest));
+
+  const persisted = await page.evaluate(() => { Layout.set('views', 520); return Layout.values.views; });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  check('layout sizes survive a reload',
+    await page.evaluate(() => Layout.values.views) === persisted, String(persisted));
+  await page.evaluate(() => { Layout.set('views', Layout.def('views')); Dock.setSplit(false); });
+  await page.waitForTimeout(300);
+  await type('source /opt/ros/jazzy/setup.bash');
+  await type('kill all');
+
   // --- the header must fit a phone (v1.4.1)
   const phone = await browser.newPage();
   await phone.setViewportSize({ width: 320, height: 640 });
@@ -419,7 +498,7 @@ const server = http.createServer((req, res) => {
   const xp = await page.evaluate(() => App.xp);
   check('xp awarded', xp > 0, 'xp=' + xp);
 
-  await page.click('#view-tabs button[data-panel="files"]');
+  await page.click('#tabs-a button[data-panel="files"]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(SHOTS, 'full.png'), fullPage: false });
 
