@@ -139,7 +139,7 @@
         el('span', { class: 'tn', text: name + (isDir ? '/' : '') }),
         isDir ? el('button', {
           class: 'tcd', title: 'cd into this folder',
-          onClick: (e) => { e.stopPropagation(); Bus.emit('term:type', { text: 'cd ' + VFS.pretty(path) }); }
+          onClick: (e) => { e.stopPropagation(); Bus.emit('term:type', { text: 'cd ' + VFS.pretty(path), instant: true }); }
         }, ['cd']) : null
       ]);
       wrap.appendChild(row);

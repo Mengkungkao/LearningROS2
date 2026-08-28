@@ -71,6 +71,14 @@
       if (!silent) {
         this.save();
         Bus.emit('layout:change', { key: key, value: v });
+        /* canvases size themselves from their box, so they have to be told */
+        if (!this._raf) {
+          this._raf = requestAnimationFrame(() => {
+            this._raf = null;
+            if (global.Sim && global.Sim.resize) global.Sim.resize();
+            if (global.Graph && global.Graph.resize) { global.Graph.resize(); global.Graph.dirty = true; }
+          });
+        }
       }
     },
 

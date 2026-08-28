@@ -34,6 +34,7 @@
       this.buildSidebar();
       this.buildChallenges();
       this.bindChrome();
+      global.Mobile.init();
 
       Bus.on('command', (c) => { this.history.push(c.line); this.check(); this.saveSoon(); });
       Bus.on('editor:saved', () => { this.check(); this.saveSoon(); });
@@ -121,6 +122,11 @@
         Term.write('');
       });
       U.$('#explain-bigger').addEventListener('click', () => {
+        if (global.Mobile && global.Mobile.on) {
+          document.body.classList.toggle('explain-collapsed');
+          global.Mobile.reflow();
+          return;
+        }
         const L = global.Layout;
         const big = L.def('explain') * 2;
         L.set('explain', L.values.explain >= big - 10 ? L.def('explain') : big);
@@ -166,7 +172,7 @@
         b.addEventListener('click', () => {
           const cmd = b.getAttribute('data-cmd');
           if (cmd === '__ctrlc') { Term.interrupt(); return; }
-          Bus.emit('term:type', { text: cmd, run: b.getAttribute('data-run') !== 'no' });
+          Bus.emit('term:type', { text: cmd, run: b.getAttribute('data-run') !== 'no', instant: true });
         });
       });
     },
@@ -250,6 +256,11 @@
 
     /** Hide or show the lessons column (a drawer on a narrow screen). */
     toggleLessons(force) {
+      if (global.Mobile && global.Mobile.on) {
+        const showing = global.Mobile.section === 'lessons';
+        global.Mobile.go(showing ? 'terminal' : 'lessons', true);
+        return !showing;
+      }
       const drawer = window.matchMedia('(max-width: 1180px)').matches;
       if (drawer) {
         const open = force === undefined ? !document.body.classList.contains('nav-open') : force;
@@ -413,7 +424,7 @@
         lesson.cheats.forEach((c) => {
           wrap.appendChild(el('button', {
             class: 'cheat', title: 'Click to type it into the terminal',
-            onClick: () => Bus.emit('term:type', { text: c, run: false })
+            onClick: () => Bus.emit('term:type', { text: c, run: false, instant: true })
           }, [c]));
         });
         body.appendChild(wrap);
@@ -421,6 +432,7 @@
       }
 
       if (lesson.panel) Panels.show(lesson.panel);
+      Bus.emit('lesson:open', { id: id });
       this.check(true);
 
       if (!quiet) {

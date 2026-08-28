@@ -36,6 +36,7 @@ git push origin --tags
 
 | Version | Commit | Summary |
 |---|---|---|
+| v1.7.0 | `ea95a62` | Fix: the phone build was broken; real mobile layout |
 | v1.6.0 | `de89326` | Hide the lessons panel, reading mode |
 | v1.5.0 | `639c1b3` | Split view (Robot + Graph) and magnetic dividers |
 | v1.4.1 | `537b017` | Fix: header did not fit on a phone |

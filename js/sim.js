@@ -79,7 +79,7 @@
           this._warned = true;
           setTimeout(() => { this._warned = false; }, 3000);
           Bus.emit('explain', {
-            kid: 'The arrow keys do nothing yet! Nothing is listening to them. Start the keyboard driver first:\n`ros2 run turtlesim turtle_teleop_key`',
+            kid: 'Those buttons do nothing yet — nothing is listening to them. Start the driver first:\n`ros2 run turtlesim turtle_teleop_key`',
             pro: 'No teleop node is running, so there is no publisher on /turtle1/cmd_vel.'
           });
         }
@@ -120,12 +120,18 @@
     updateHint() {
       const teleop = ROS.teleop && ROS.teleop.active;
       const running = ROS.world.running;
+      /* a phone has no arrow keys, so do not tell a phone to press them */
+      const touch = (global.Mobile && global.Mobile.on) ||
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
       this.host.classList.toggle('teleop-on', !!teleop);
       if (!running) {
         this.hint.innerHTML = 'No turtle yet. Start one:  <code>ros2 run turtlesim turtlesim_node</code>';
       } else if (!teleop) {
         this.hint.innerHTML = 'Drive it: <code>ros2 run turtlesim turtle_teleop_key</code> ' +
           '&nbsp;or&nbsp; <code>ros2 topic pub /turtle1/cmd_vel ...</code>';
+      } else if (touch) {
+        this.hint.innerHTML = '<b class="live">Tap the ▲ ◀ ▼ ▶ buttons on the turtle.</b> Every tap sends a ' +
+          'real <code>geometry_msgs/msg/Twist</code> on <code>/turtle1/cmd_vel</code>';
       } else if (!this.focused) {
         this.hint.innerHTML = '<b>Click the blue square</b>, then use the arrow keys 🡄 🡅 🡇 🡆';
       } else {

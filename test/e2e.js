@@ -507,6 +507,117 @@ const server = http.createServer((req, res) => {
     !await page.evaluate(() => Layout.isHidden('lessons')) &&
     Math.abs(await page.evaluate(() => Math.round(document.querySelector('#explain').getBoundingClientRect().height)) - explainBefore) < 4);
 
+  // --- the phone build (v1.7.0)
+  // The old mobile checks only asserted "no horizontal overflow", which was
+  // true while #views was squashed to 42px. These check real geometry.
+  const mob = await browser.newPage({
+    viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 ' +
+      '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  });
+  const mobErrors = [];
+  mob.on('pageerror', (e) => mobErrors.push(e.message));
+  mob.on('console', (m) => { if (m.type() === 'error') mobErrors.push(m.text()); });
+  await mob.goto('http://localhost:' + PORT + '/', { waitUntil: 'networkidle' });
+  await mob.waitForTimeout(800);
+
+  const mBox = (sel) => mob.evaluate((s) => {
+    const e = document.querySelector(s);
+    if (!e) return null;
+    const b = e.getBoundingClientRect();
+    return { y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) };
+  }, sel);
+
+  check('the phone gets the section layout, not the desktop grid',
+    await mob.evaluate(() => Mobile.on && document.body.classList.contains('mobile-mode')));
+  check('the bottom bar is there', (await mBox('#mobile-bar')).h >= 44);
+
+  await mob.click('#mobile-bar button[data-section="views"]');
+  await mob.waitForTimeout(500);
+  const mViews = await mBox('#views');
+  check('the live view fills the screen instead of collapsing to its tab strip',
+    mViews.h > 300 && mViews.w >= 380, JSON.stringify(mViews));
+
+  const inputFont = await mob.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector('#term-input')).fontSize));
+  check('the terminal input is 16px, so iOS does not zoom on focus', inputFont >= 16, String(inputFont));
+
+  const mType = async (c, w = 400) => {
+    await mob.click('#mobile-bar button[data-section="terminal"]');
+    await mob.waitForTimeout(200);
+    await mob.fill('#term-input', c);
+    await mob.press('#term-input', 'Enter');
+    await mob.waitForTimeout(w);
+  };
+  await mType('source /opt/ros/jazzy/setup.bash');
+  await mType('ros2 run turtlesim turtlesim_node', 700);
+  check('a suggestion badges the Live view instead of yanking the screen away',
+    await mob.evaluate(() => Mobile.section === 'terminal' &&
+      document.querySelector('#mobile-bar button[data-section="views"]').classList.contains('nudge')));
+
+  await mType('ros2 run turtlesim turtle_teleop_key', 500);
+  await mob.click('#mobile-bar button[data-section="views"]');
+  await mob.waitForTimeout(600);
+  const mCanvas = await mBox('#sim-canvas');
+  check('the turtle gets a big canvas, with the pad floating over it',
+    mCanvas.h > 280 && await mob.evaluate(() =>
+      document.querySelector('.canvaswrap .dpad') !== null), JSON.stringify(mCanvas));
+  check('the hint tells a phone to tap, not to press arrow keys',
+    /Tap the/.test(await mob.evaluate(() => document.querySelector('#sim-hint').innerText)));
+
+  const padUp = await mob.$('.dpad button.up');
+  for (let i = 0; i < 5; i++) {
+    await padUp.dispatchEvent('touchstart');
+    await mob.waitForTimeout(120);
+    await padUp.dispatchEvent('touchend');
+  }
+  await mob.waitForTimeout(400);
+  check('the turtle drives from touch alone',
+    await mob.evaluate(() => Math.abs(ROS.world.turtles.turtle1.x - 5.544) > 0.4));
+
+  // tapping a lesson command must load ALL of it, at once
+  await mob.evaluate(() => App.openLesson('ros-turtle'));
+  await mob.click('#mobile-bar button[data-section="terminal"]');
+  await mob.waitForTimeout(400);
+  const chipCount = await mob.evaluate(() => document.querySelectorAll('#lesson-chips button').length);
+  check('the lesson commands are tappable chips', chipCount >= 3, String(chipCount));
+  const wanted = await mob.evaluate(() => document.querySelector('#lesson-chips button').title);
+  await mob.click('#lesson-chips button');
+  await mob.waitForTimeout(150);
+  check('tapping a command loads the whole line immediately',
+    await mob.inputValue('#term-input') === wanted,
+    JSON.stringify(await mob.inputValue('#term-input')) + ' vs ' + JSON.stringify(wanted));
+
+  // folding the explanations must not take the button that unfolds them
+  const termBefore2 = (await mBox('#terminal')).h;
+  await mob.click('#explain-bigger');
+  await mob.waitForTimeout(400);
+  const termFolded = (await mBox('#terminal')).h;
+  check('folding the explanations gives the terminal the room', termFolded > termBefore2 + 80,
+    termBefore2 + ' -> ' + termFolded);
+  check('the button that unfolds them is still on screen', await mob.isVisible('#explain-bigger'));
+  await mob.click('#explain-bigger');
+  await mob.waitForTimeout(300);
+
+  // a phone on its side must not fall back to the desktop layout
+  await mob.setViewportSize({ width: 844, height: 390 });
+  await mob.waitForTimeout(600);
+  await mob.click('#mobile-bar button[data-section="terminal"]');
+  await mob.waitForTimeout(400);
+  const land = await mob.evaluate(() => ({
+    mobile: Mobile.on,
+    term: Math.round(document.querySelector('#terminal').getBoundingClientRect().height),
+    inputOnScreen: (() => {
+      const r = document.querySelector('#term-input').getBoundingClientRect();
+      return r.top > 0 && r.bottom < window.innerHeight;
+    })()
+  }));
+  check('a landscape phone keeps the section layout and a usable terminal',
+    land.mobile && land.term > 120 && land.inputOnScreen, JSON.stringify(land));
+
+  check('the phone build logs no errors', mobErrors.length === 0, mobErrors.slice(0, 3).join(' | '));
+  await mob.close();
+
   // --- printable cheat sheet (v1.4.0)
   const sheet = await browser.newPage();
   const sheetErrors = [];

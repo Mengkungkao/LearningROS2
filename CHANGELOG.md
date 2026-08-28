@@ -10,6 +10,64 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.7.0] — 2026-08-29  ·  commit `ea95a62`
+
+The phone build. Reported broken on a real device, and it was.
+
+### Fixed
+- **The live view was 42px tall on every phone** — the tab strip and nothing
+  else, so Files, Graph, Robot and Inspect were effectively gone. v1.5.0 added
+  two dividers to `main`, but the mobile rule still declared only two grid rows,
+  so the five children fought over them: the lessons divider took a **292px
+  invisible row** at the top and `#views` was left with whatever remained
+- **Tapping a command ran a truncated version of it.** Command buttons animated
+  their text in one character at a time, so pressing Enter early submitted
+  something like `ros2 run tur`. Command buttons now load the whole line at
+  once, and Enter during any remaining animation completes the line instead of
+  submitting half of it
+- **Folding the explanations hid the button that unfolds them.** The panel now
+  keeps its bar and folds only the feed
+- **A phone held sideways** (844×390) was wide enough to escape the phone rules
+  and far too short for three columns — it gave a 102px terminal. The breakpoint
+  is now narrow **or** short
+- Canvases did not resize when a divider was dragged; they only followed window
+  resizes
+- The lessons section was 88% of the screen width, left over from the drawer
+
+### Added
+- **Three full-height sections behind a bottom bar** — 📚 Lessons, ⌨️ Terminal,
+  👁️ Live view — instead of squeezing a three-column desktop layout onto 390px.
+  The turtle canvas went from unusable to 386px on an iPhone 13
+- **The D-pad floats over the canvas** like a game controller, so the buttons
+  stop stealing the turtle's height
+- **Tappable lesson commands.** The current lesson's commands sit above the
+  keyboard as chips; one tap loads the line and you still press Enter yourself.
+  Typing `ros2 topic pub --once /turtle1/cmd_vel geometry_msgs/msg/Twist
+  "{linear: {x: 2.0}}"` on glass was never going to happen
+- **Keyboard-aware sizing.** A phone keyboard covers the screen without changing
+  `window.innerHeight`, so the app followed `visualViewport` instead; the prompt
+  stays visible while you type
+- A suggestion **badges** the Live view button rather than yanking the screen
+  away mid-thought
+- The split divider stays draggable on a phone with a thumb-sized target, since
+  it is the only way to rebalance the two panes there
+- Landscape gets trimmed chrome; the explanations fold away with one tap
+
+### Changed
+- The terminal input is 16px on mobile, because iOS zooms the whole page when it
+  focuses anything smaller
+- Touch-sized tabs, chips, quickbar and lesson rows
+- The turtle hint says "tap the ▲ ◀ ▼ ▶ buttons" on a phone instead of telling
+  it to press arrow keys it does not have
+
+### Tests
+- 109 checks (up from 95), 14 of them a real phone context. The old mobile
+  checks only asserted "no horizontal overflow" — which was perfectly true while
+  the live view was 42px tall. The new ones assert actual geometry: the live
+  view fills the screen, the canvas is big, the input is 16px, a tapped command
+  arrives whole, folding keeps its unfold button, and a landscape phone keeps a
+  usable terminal
+
 ## [1.6.0] — 2026-08-28  ·  commit `de89326`
 
 Room to read.
@@ -275,6 +333,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.7.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.5.0
 [1.4.1]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.1

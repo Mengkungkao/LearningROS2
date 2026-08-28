@@ -1,6 +1,6 @@
 {
   "name": "ros2-academy",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Learn ROS 2 from zero to pro in your browser: a simulated terminal, a live node graph, and a turtle robot that moves when your code tells it to.",
   "keywords": ["ros2", "ros", "robotics", "education", "teaching", "simulator", "terminal", "turtlesim"],
   "license": "Apache-2.0",

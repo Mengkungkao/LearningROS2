@@ -43,6 +43,14 @@ It also runs as-is on GitHub Pages: *Settings → Pages → Deploy from branch �
 
 ---
 
+## On a phone
+
+Below 820px wide (or 500px tall, which is a phone on its side) the app becomes three
+full-height sections behind a bottom bar — **📚 Lessons · ⌨️ Terminal · 👁️ Live view**.
+The D-pad floats over the turtle like a game controller, the current lesson's commands
+appear as **tappable chips** above the keyboard so you never type a long `ros2` line on
+glass, and the layout follows the on-screen keyboard so the prompt stays visible.
+
 ## What you see
 
 ```
@@ -214,6 +222,7 @@ Plain ES5-ish JavaScript, no framework, no bundler. Each file does one job:
 | `js/terminal.js` | the terminal UI: history, Tab-completion, Ctrl+C, streaming |
 | `js/graph.js` · `js/sim.js` · `js/panels.js` | the live views |
 | `js/dock.js` | which panel lives in which pane |
+| `js/mobile.js` | the phone build: sections, bottom bar, keyboard, command chips |
 | `js/layout.js` | draggable, magnetic dividers |
 | `js/highlight.js` | editor syntax colouring (tokenise, then escape) |
 | `js/lessons.js` · `js/lessons2.js` | the curriculum (pure data — easy to extend) |

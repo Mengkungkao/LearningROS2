@@ -297,7 +297,7 @@
     start(node) {
       ROS.teleop = { node: node, active: true };
       node.log('Reading from keyboard\n---------------------------\nUse arrow keys to move the turtle.\n' +
-        "Click the Robot panel first so it can hear your keys. 'q' to quit.");
+        'On the Robot panel: click it first, or tap the on-screen buttons.');
       Bus.emit('sim:teleop', { active: true });
     },
     stop() {
