@@ -72,6 +72,10 @@ the turtle moves when it arrives. That is the whole idea of ROS 2 made visible i
 Every divider is draggable and **magnetic** — it pulls towards halves, thirds and quarters and
 clicks into place with a label. Hold **Shift** for a free placement, double-click to reset.
 
+Need more room? **Ctrl+B** hides the lessons and gives the space to the terminal; **📖 Read**
+(Ctrl+E) also enlarges the explanation panel for when you want to read rather than type. Both
+put everything back exactly as it was.
+
 Every command also writes a plain-English note into **"What just happened?"** — and a
 toggle in the header switches every explanation in the app between:
 
@@ -184,6 +188,8 @@ Everything you type here works, unchanged, on a real ROS 2 Jazzy install.
 | **↑ / ↓** | command history |
 | **Ctrl+C** | stop `echo`, `hz`, `bag record`, a repeating `pub` |
 | **Ctrl+L** | clear the screen |
+| **Ctrl+B** | hide / show the lessons panel |
+| **Ctrl+E** | reading mode — lessons away, explanations big |
 | `backup` · `restore` | save your work to a file · load it back (also the 💾 / 📂 buttons) |
 
 Click any command in a lesson's cheat sheet to drop it into the terminal — you still press

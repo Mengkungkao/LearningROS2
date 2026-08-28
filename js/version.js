@@ -6,7 +6,7 @@
   'use strict';
   global.APP_INFO = {
     name: 'ROS 2 Academy',
-    version: '1.5.0',
+    version: '1.6.0',
     rosDistro: 'jazzy',
     repo: 'https://github.com/Mengkungkao/LearningROS2'
   };

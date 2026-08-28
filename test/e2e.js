@@ -457,6 +457,56 @@ const server = http.createServer((req, res) => {
     fits.headerNeeds <= fits.vw + 1 && fits.resetVisible && fits.menuVisible, JSON.stringify(fits));
   await phone.close();
 
+  // --- hiding the lessons, and reading mode (v1.6.0)
+  const widthOf = (sel) => page.evaluate((s) => {
+    const e = document.querySelector(s);
+    return e ? Math.round(e.getBoundingClientRect().width) : -1;
+  }, sel);
+  const termBefore = await widthOf('#terminal');
+  await page.click('#lesson-hide');
+  await page.waitForTimeout(400);
+  const termHidden = await widthOf('#terminal');
+  check('hiding the lessons gives the terminal the space',
+    termHidden > termBefore + 200, termBefore + ' -> ' + termHidden);
+  check('the terminal is still usable with the lessons hidden', termHidden > 400, String(termHidden));
+  check('a way back is offered', await page.isVisible('#lessons-peek'));
+  await type('echo still-typing-fine', 400);
+  check('you can still type with the lessons hidden',
+    (await out()).includes('still-typing-fine'), await tail(2));
+  await page.click('#lessons-peek');
+  await page.waitForTimeout(400);
+  check('the lessons come back the same size',
+    await widthOf('#terminal') === termBefore, String(await widthOf('#terminal')));
+
+  await page.click('#term-out');
+  await page.keyboard.press('Control+b');
+  await page.waitForTimeout(350);
+  check('Ctrl+B toggles the lessons', await page.evaluate(() => Layout.isHidden('lessons')));
+  await page.keyboard.press('Control+b');
+  await page.waitForTimeout(350);
+  check('Ctrl+B brings them back', !await page.evaluate(() => Layout.isHidden('lessons')));
+
+  const explainBefore = await page.evaluate(() => Math.round(document.querySelector('#explain').getBoundingClientRect().height));
+  await page.click('#btn-focus');
+  await page.waitForTimeout(500);
+  const reading = await page.evaluate(() => ({
+    on: document.body.classList.contains('reading-mode'),
+    lessonsHidden: Layout.isHidden('lessons'),
+    explain: Math.round(document.querySelector('#explain').getBoundingClientRect().height),
+    terminal: Math.round(document.querySelector('#terminal').getBoundingClientRect().height),
+    font: parseFloat(getComputedStyle(document.querySelector('.ecard')).fontSize)
+  }));
+  check('reading mode hides the lessons and enlarges the explanations',
+    reading.on && reading.lessonsHidden && reading.explain > explainBefore + 100 && reading.font >= 14,
+    JSON.stringify(reading));
+  check('reading mode still leaves a usable terminal', reading.terminal > 180, String(reading.terminal));
+  await page.click('#btn-focus');
+  await page.waitForTimeout(500);
+  check('leaving reading mode restores what was there',
+    !await page.evaluate(() => document.body.classList.contains('reading-mode')) &&
+    !await page.evaluate(() => Layout.isHidden('lessons')) &&
+    Math.abs(await page.evaluate(() => Math.round(document.querySelector('#explain').getBoundingClientRect().height)) - explainBefore) < 4);
+
   // --- printable cheat sheet (v1.4.0)
   const sheet = await browser.newPage();
   const sheetErrors = [];

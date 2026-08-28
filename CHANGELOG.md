@@ -10,6 +10,40 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.6.0] — 2026-08-28  ·  commit `de89326`
+
+Room to read.
+
+### Added
+- **Hide the lessons.** The ⇤ button at the foot of the lessons panel tucks it
+  away and hands the space to the terminal — on a 1600px screen that is 846px of
+  terminal becoming 1173px. A slim **📚 Lessons** tab on the left edge brings it
+  back, and **Ctrl+B** toggles it from anywhere. Dragging the lessons divider
+  nearly shut does the same thing
+- **📖 Read — reading mode** (**Ctrl+E**). One button for when you want to read
+  what just happened rather than do the next step: the lessons tuck away, the
+  "What just happened?" panel grows to about 40% of the window, and its text
+  steps up to a comfortable size. Press it again and everything returns exactly
+  as it was, including the sizes you had chosen. The choice is remembered
+- A ⤢ button on the explanation panel toggles it between its normal and double
+  height without leaving reading mode
+
+### Fixed
+- Hiding a side column used to collapse the terminal to **zero width**:
+  `display:none` took the column out of the CSS grid, so every later item slid
+  left into a zero-width track. Hidden columns now stay in the grid at zero
+  width instead
+- The 📚 peek tab no longer sits on top of the terminal text
+- The new 📖 Read button is hidden below 640px, where it would have pushed
+  ↺ Reset off a phone screen again (the v1.4.1 regression test caught this
+  before it shipped)
+
+### Tests
+- 95 checks (up from 85): the terminal actually gains the space and stays
+  usable and typeable, a way back is always offered, Ctrl+B toggles, reading
+  mode enlarges the explanations while leaving a usable terminal, and leaving
+  reading mode restores the previous sizes exactly
+
 ## [1.5.0] — 2026-08-28  ·  commit `639c1b3`
 
 Watch the cause and the effect at the same moment.
@@ -241,6 +275,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.6.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.5.0
 [1.4.1]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.1
 [1.4.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.0

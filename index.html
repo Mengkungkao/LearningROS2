@@ -11,7 +11,7 @@
 <body>
 
 <header>
-  <button class="hbtn" id="btn-sidebar" title="Show lessons">☰</button>
+  <button class="hbtn" id="btn-sidebar" title="Show or hide the lessons panel (Ctrl+B)">☰</button>
   <div class="logo">
     <span class="bot">🤖</span>
     <span><b>ROS 2</b><span class="wordmark"> Academy</span><br><small>zero → robot programmer <em id="app-version"></em></small></span>
@@ -31,6 +31,7 @@
     <button data-mode="pro">🎓<span class="mlabel"> Pro</span></button>
   </div>
 
+  <button class="hbtn" id="btn-focus" title="Reading mode: hide the lessons and make the explanations big (Ctrl+E)">📖 Read</button>
   <button class="hbtn" id="btn-backup" title="Save your files and progress to a file you can keep">💾 Save</button>
   <button class="hbtn" id="btn-restoreb" title="Load work you saved earlier">📂 Load</button>
   <a class="hbtn" id="btn-cheat" href="cheatsheet.html" target="_blank" rel="noopener" title="A printable one-page command reference">🖨️ Cheat sheet</a>
@@ -53,6 +54,7 @@
       <div class="lnav">
         <button id="lesson-prev">← Back</button>
         <button id="lesson-next">Next lesson →</button>
+        <button id="lesson-hide" title="Hide this panel (Ctrl+B)">⇤</button>
       </div>
     </div>
 
@@ -206,6 +208,8 @@
   </section>
 
 </main>
+
+<button id="lessons-peek" title="Show the lessons again (Ctrl+B)">📚<span>Lessons</span></button>
 
 <div id="confetti"></div>
 

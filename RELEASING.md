@@ -36,6 +36,7 @@ git push origin --tags
 
 | Version | Commit | Summary |
 |---|---|---|
+| v1.6.0 | `de89326` | Hide the lessons panel, reading mode |
 | v1.5.0 | `639c1b3` | Split view (Robot + Graph) and magnetic dividers |
 | v1.4.1 | `537b017` | Fix: header did not fit on a phone |
 | v1.4.0 | `e36953a` | Save/load your work, printable cheat sheet |
