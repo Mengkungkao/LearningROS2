@@ -137,7 +137,8 @@
         });
       });
       U.$('#btn-sidebar').addEventListener('click', () => {
-        document.body.classList.toggle('nav-open');
+        if (global.WindowManager) global.WindowManager.toggleLessons();
+        else document.body.classList.toggle('nav-open');
       });
       U.$$('#side-tabs button').forEach((b) => {
         b.addEventListener('click', () => this.setView(b.getAttribute('data-view')));

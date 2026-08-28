@@ -46,13 +46,15 @@ It also runs as-is on GitHub Pages: *Settings → Pages → Deploy from branch �
 ## What you see
 
 ```
+each window can resize and dragable to anywhere on web or minimize 
+for the lesson window shall be on the left side able to hide
 ┌─────────────┬──────────────────────────┬────────────────────┐
 │  LESSONS    │  TERMINAL                │  LIVE VIEWS        │
 │             │  you type here           │  📁 Files          │
-│  tasks that │                          │  📝 Editor         │
-│  tick       │                          │  🕸️  Graph          │
-│  themselves ├──────────────────────────┤  🐢 Robot          │
-│  off        │  💡 What just happened?  │  📊 Inspect        │
+│  tasks that ├──────────────────────────┤  📝 Editor         │
+│  tick       │ 💡 What just happened?   │  🕸️  Graph         │
+│  themselves │                          │  🐢 Robot          │
+│  off        │                          │  📊 Inspect       │
 └─────────────┴──────────────────────────┴────────────────────┘
 ```
 

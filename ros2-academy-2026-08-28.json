@@ -1,0 +1,169 @@
+{
+  "format": 1,
+  "app": "ROS 2 Academy",
+  "version": "1.4.0",
+  "savedAt": "2026-08-28T08:33:14.067Z",
+  "progress": {
+    "done": {
+      "terminal-hello": true,
+      "terminal-move": true,
+      "terminal-files": true,
+      "terminal-tidy": true,
+      "ros-source": true,
+      "ros-nodes": true,
+      "ros-topics": true,
+      "ros-turtle": true
+    },
+    "challengeDone": {
+      "c-square": true
+    },
+    "xp": 290,
+    "badges": {
+      "shell": "Shell Explorer",
+      "lvl1": "Level 1 Champion",
+      "turtle": "Turtle Wrangler",
+      "lvl2": "Level 2 Champion"
+    },
+    "mode": "kid",
+    "lastLesson": "ros-turtle"
+  },
+  "files": {
+    "root": {
+      "type": "dir",
+      "name": "",
+      "children": {
+        "home": {
+          "type": "dir",
+          "name": "home",
+          "children": {
+            "student": {
+              "type": "dir",
+              "name": "student",
+              "children": {
+                "Desktop": {
+                  "type": "dir",
+                  "name": "Desktop",
+                  "children": {
+                    "robot_ideas.txt": {
+                      "type": "file",
+                      "name": "robot_ideas.txt",
+                      "content": "Robot ideas:\n1. A robot that waters my plants\n2. A robot that finds my socks\n3. A turtle that draws pictures  <-- we build this one in Lesson 8!\n"
+                    }
+                  }
+                },
+                "welcome.txt": {
+                  "type": "file",
+                  "name": "welcome.txt",
+                  "content": "Welcome to ROS 2 Academy!\n\nThis is a pretend Linux computer that lives inside your web browser.\nNothing you type here can break anything. Try things! Break things!\n\nType   ls      to see what is here.\nType   help    to see every command you can use.\nType   hint    if you get stuck on a lesson.\n"
+                },
+                "my_robot": {
+                  "type": "dir",
+                  "name": "my_robot",
+                  "children": {
+                    "notes.txt": {
+                      "type": "file",
+                      "name": "notes.txt",
+                      "content": "I am learning ROS2 now\n"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "opt": {
+          "type": "dir",
+          "name": "opt",
+          "children": {
+            "ros": {
+              "type": "dir",
+              "name": "ros",
+              "children": {
+                "jazzy": {
+                  "type": "dir",
+                  "name": "jazzy",
+                  "children": {
+                    "share": {
+                      "type": "dir",
+                      "name": "share",
+                      "children": {
+                        "std_msgs": {
+                          "type": "dir",
+                          "name": "std_msgs",
+                          "children": {
+                            "msg": {
+                              "type": "dir",
+                              "name": "msg",
+                              "children": {
+                                "String.msg": {
+                                  "type": "file",
+                                  "name": "String.msg",
+                                  "content": "string data\n"
+                                },
+                                "Int32.msg": {
+                                  "type": "file",
+                                  "name": "Int32.msg",
+                                  "content": "int32 data\n"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "geometry_msgs": {
+                          "type": "dir",
+                          "name": "geometry_msgs",
+                          "children": {
+                            "msg": {
+                              "type": "dir",
+                              "name": "msg",
+                              "children": {
+                                "Twist.msg": {
+                                  "type": "file",
+                                  "name": "Twist.msg",
+                                  "content": "# This expresses velocity in free space broken into its linear and angular parts.\nVector3  linear\nVector3  angular\n"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "turtlesim": {
+                          "type": "dir",
+                          "name": "turtlesim",
+                          "children": {
+                            "msg": {
+                              "type": "dir",
+                              "name": "msg",
+                              "children": {
+                                "Pose.msg": {
+                                  "type": "file",
+                                  "name": "Pose.msg",
+                                  "content": "float32 x\nfloat32 y\nfloat32 theta\nfloat32 linear_velocity\nfloat32 angular_velocity\n"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "bin": {
+                      "type": "dir",
+                      "name": "bin",
+                      "children": {}
+                    },
+                    "setup.bash": {
+                      "type": "file",
+                      "name": "setup.bash",
+                      "content": "# ROS 2 Jazzy environment setup\n# Running \"source\" on this file tells your terminal where ROS 2 lives.\nexport ROS_DISTRO=jazzy\nexport ROS_VERSION=2\nexport AMENT_PREFIX_PATH=/opt/ros/jazzy\n"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cwd": "/home/student/my_robot"
+  },
+  "history": []
+}
