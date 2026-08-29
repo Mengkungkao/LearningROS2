@@ -321,7 +321,8 @@
         2: 'Level 2 · Meeting ROS 2',
         3: 'Level 3 · Poking the robot',
         4: 'Level 4 · Writing your own code',
-        5: 'Level 5 · Pro moves'
+        5: 'Level 5 · Pro moves',
+        6: 'Level 6 · C++ and the build'
       };
       Object.keys(levels).sort().forEach((lv) => {
         nav.appendChild(el('div', { class: 'navlevel', text: titles[lv] || 'Level ' + lv }));

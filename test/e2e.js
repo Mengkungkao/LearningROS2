@@ -264,6 +264,81 @@ const server = http.createServer((req, res) => {
   check('bag replay reaches a live listener', afterReplay.includes('I heard: [Hello World'), afterReplay.slice(-200));
   await type('kill all');
 
+  // --- C++ and the CMake build (v1.8.0)
+  await type('kill all');
+  await type('cd ~/ros2_ws/src');
+  await type('ros2 pkg create cpp_pubsub --build-type ament_cmake --dependencies rclcpp std_msgs', 500);
+  check('an ament_cmake package scaffolds a CMakeLists',
+    await page.evaluate(() => VFS.exists('/home/student/ros2_ws/src/cpp_pubsub/CMakeLists.txt')));
+
+  await page.evaluate(() => App.openLesson('cpp-publisher'));
+  await page.waitForTimeout(300);
+  const cppSnips = await page.$$('.snip');
+  check('the C++ lesson ships its code', cppSnips.length === 2, 'found ' + cppSnips.length);
+  for (const sn of cppSnips) {
+    await sn.click();
+    await page.waitForTimeout(280);
+    await page.click('#editor-save');
+    await page.waitForTimeout(200);
+  }
+
+  // the analyser must read C++ as well as it reads Python
+  const cppRead = await page.evaluate(() => {
+    const src = VFS.readFile('/home/student/ros2_ws/src/cpp_pubsub/src/publisher_member_function.cpp');
+    const a = Analyze.cpp(src);
+    return { lang: a.lang, node: a.nodeName, topic: (a.publishers[0] || {}).topic,
+             type: (a.publishers[0] || {}).type, period: (a.timers[0] || {}).period,
+             warnings: a.warnings.length };
+  });
+  check('the analyser reads a C++ node',
+    cppRead.lang === 'cpp' && cppRead.node === 'minimal_publisher' &&
+    cppRead.topic === 'chatter' && cppRead.type === 'std_msgs/msg/String' &&
+    cppRead.period === 0.5 && cppRead.warnings === 0, JSON.stringify(cppRead));
+
+  // each CMake mistake must fail the way CMake really fails
+  const cmakePath = '/home/student/ros2_ws/src/cpp_pubsub/CMakeLists.txt';
+  const goodCmake = await page.evaluate((f) => VFS.readFile(f), cmakePath);
+  await type('cd ~/ros2_ws');
+
+  await page.evaluate((a) => VFS.writeFile(a[0], a[1].replace(/ament_target_dependencies[^\n]*\n/, '')),
+    [cmakePath, goodCmake]);
+  await type('colcon build', 700);
+  check('a target with no dependencies fails on the missing header',
+    (await out()).includes('rclcpp/rclcpp.hpp: No such file or directory'), await tail(6));
+
+  await page.evaluate((a) => VFS.writeFile(a[0], a[1].replace(/install\(TARGETS[\s\S]*?\)\n/, '')),
+    [cmakePath, goodCmake]);
+  await type('colcon build', 700);
+  check('a target that is never installed says so',
+    (await out()).includes('built, but never installed'), await tail(6));
+
+  await page.evaluate((a) => VFS.writeFile(a[0],
+    a[1].replace('src/publisher_member_function.cpp', 'src/typo_name.cpp')), [cmakePath, goodCmake]);
+  await type('colcon build', 700);
+  check('a misspelled source file fails like CMake does',
+    (await out()).includes('Cannot find source file'), await tail(6));
+
+  // and the whole thing works
+  await page.evaluate((a) => VFS.writeFile(a[0], a[1]), [cmakePath, goodCmake]);
+  await type('colcon build', 800);
+  await type('source install/setup.bash');
+  check('a complete CMakeLists produces a runnable executable',
+    await page.evaluate(() => !!ROS.programs['cpp_pubsub/talker']));
+  await type('ros2 run cpp_pubsub talker', 1600);
+  const cppLog = (await out()).split('\n').filter((l) => /Publishing:/.test(l)).slice(-1)[0] || '';
+  check('the C++ node runs, counts, and formats its log',
+    /minimal_publisher/.test(cppLog) && /Hello from C\+\+: \d+/.test(cppLog), cppLog);
+  check('and it appears in the graph like any other node',
+    await page.evaluate(() => !!ROS.topics['/chatter'] && ROS.topics['/chatter'].pubs.length > 0));
+
+  // the payoff: a Python node hearing a C++ node
+  await type('ros2 run demo_nodes_py listener', 2000);
+  const crossed = (await out()).split('\n').filter((l) => /I heard/.test(l)).slice(-1)[0] || '';
+  check('a Python node hears a C++ node',
+    /listener/.test(crossed) && /Hello from C\+\+/.test(crossed), crossed);
+  await type('kill all');
+  await type('cd ~/ros2_ws');
+
   // --- QoS (v1.3.0): the silent failure, using a camera like real life
   await type('kill all');
   await type('ros2 run image_tools cam2image', 800);

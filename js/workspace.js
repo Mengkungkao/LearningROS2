@@ -194,10 +194,19 @@
   }
 
   function cmakeLists(name, deps) {
-    return 'cmake_minimum_required(VERSION 3.8)\nproject(' + name + ')\n\n' +
+    return 'cmake_minimum_required(VERSION 3.8)\n' +
+      'project(' + name + ')\n\n' +
+      'if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")\n' +
+      '  add_compile_options(-Wall -Wextra -Wpedantic)\n' +
+      'endif()\n\n' +
+      '# every package this one needs, found at build time\n' +
       'find_package(ament_cmake REQUIRED)\n' +
       deps.map((d) => 'find_package(' + d + ' REQUIRED)\n').join('') +
-      '\nament_package()\n';
+      '\n# 1. compile a program:   add_executable(<name> <source files>)\n' +
+      '# 2. give it its libraries: ament_target_dependencies(<name> ' + deps.join(' ') + ')\n' +
+      '# 3. put it where ros2 run looks:\n' +
+      '#    install(TARGETS <name> DESTINATION lib/${PROJECT_NAME})\n\n' +
+      'ament_package()\n';
   }
 
   function starterNode(nodeName) {
@@ -375,9 +384,9 @@
         if (analysis.services.length) bits.push('serves ' + analysis.services.map((x) => x.name).join(', '));
         if (bits.length) notes.push(e.name + ': ' + bits.join('; ') + '.');
       });
-    } else {
-      notes.push('This academy can run Python nodes (ament_python). A C++ package builds and installs, ' +
-        'but its nodes will not actually run here.');
+    } else if (p.buildType === 'ament_cmake') {
+      const res = buildCmake(p, installPrefix, notes);
+      if (!res.ok) return { ok: false, error: res.error, notes: notes };
     }
 
     ROS.packages[p.name] = {
@@ -386,6 +395,126 @@
     };
     Bus.emit('vfs:change', { action: 'create', path: wsRoot + '/install', kind: 'dir' });
     return { ok: true, notes: notes };
+  }
+
+  /**
+   * Build an ament_cmake package by reading CMakeLists.txt.
+   *
+   * The point is not to be a compiler — it is to enforce the three lines
+   * every C++ tutorial makes you write, and to fail the way CMake really
+   * fails when one is missing:
+   *   find_package(rclcpp REQUIRED)
+   *   add_executable(talker src/talker.cpp)
+   *   ament_target_dependencies(talker rclcpp std_msgs)
+   *   install(TARGETS talker DESTINATION lib/${PROJECT_NAME})
+   */
+  function buildCmake(p, installPrefix, notes) {
+    const cmake = VFS.readFile(p.path + '/CMakeLists.txt');
+    if (cmake === null) {
+      return { ok: false, error: 'CMakeLists.txt not found in ' + p.name };
+    }
+    const text = cmake.replace(/#[^\n]*/g, '');
+
+    const found = [];
+    let m;
+    const fp = /find_package\s*\(\s*([\w-]+)/g;
+    while ((m = fp.exec(text))) found.push(m[1]);
+
+    const targets = [];
+    const ae = /add_executable\s*\(\s*([\w-]+)([^)]*)\)/g;
+    while ((m = ae.exec(text))) {
+      targets.push({ name: m[1], sources: m[2].trim().split(/\s+/).filter(Boolean), deps: [], installed: false });
+    }
+
+    const atd = /(?:ament_target_dependencies|target_link_libraries)\s*\(\s*([\w-]+)([^)]*)\)/g;
+    while ((m = atd.exec(text))) {
+      const t = targets.filter((x) => x.name === m[1])[0];
+      if (t) t.deps = t.deps.concat(m[2].trim().split(/\s+/).filter(Boolean).map((d) => d.replace(/^\w+::/, '')));
+    }
+
+    const inst = /install\s*\(\s*TARGETS([\s\S]*?)\)/g;
+    while ((m = inst.exec(text))) {
+      const words = m[1].replace(/DESTINATION[\s\S]*$/, '').trim().split(/\s+/).filter(Boolean);
+      words.forEach((w) => {
+        const t = targets.filter((x) => x.name === w)[0];
+        if (t) t.installed = true;
+      });
+    }
+
+    if (!targets.length) {
+      notes.push(p.name + ': CMakeLists.txt declares no add_executable(...), so there is nothing to run. ' +
+        'Add:  add_executable(my_node src/my_node.cpp)');
+      return { ok: true };
+    }
+
+    for (const t of targets) {
+      const srcRel = t.sources[0];
+      if (!srcRel) {
+        return { ok: false, error: 'CMake Error: add_executable called with no source files (' + t.name + ')' };
+      }
+      const srcPath = p.path + '/' + srcRel;
+      const code = VFS.readFile(srcPath);
+      if (code === null) {
+        return {
+          ok: false,
+          error: 'CMake Error at CMakeLists.txt:\n  Cannot find source file:\n\n    ' + srcRel +
+            '\n\nCheck the path and the spelling.'
+        };
+      }
+
+      const analysis = Analyze.cpp(code);
+
+      /* the compiler error everyone meets: the headers are only on the
+         include path once the target is linked against the package */
+      if (analysis.usesRclcpp && t.deps.indexOf('rclcpp') < 0) {
+        return {
+          ok: false,
+          error: 'fatal error: rclcpp/rclcpp.hpp: No such file or directory\n' +
+            '    #include "rclcpp/rclcpp.hpp"\n             ^~~~~~~~~~~~~~~~~~~~\n' +
+            'compilation terminated.\n\n' +
+            'CMake knows about rclcpp, but target "' + t.name + '" was never told to use it. Add:\n' +
+            '    ament_target_dependencies(' + t.name + ' rclcpp)'
+        };
+      }
+      if (found.indexOf('rclcpp') < 0 && analysis.usesRclcpp) {
+        return {
+          ok: false,
+          error: 'CMake Error: By not providing "Findrclcpp.cmake" CMake could not find rclcpp.\n' +
+            'Add this near the top of CMakeLists.txt:\n    find_package(rclcpp REQUIRED)'
+        };
+      }
+      const msgPkgs = analysis.publishers.concat(analysis.subscriptions)
+        .map((x) => String(x.type).split('/')[0]);
+      msgPkgs.forEach((mp) => {
+        if (mp && t.deps.indexOf(mp) < 0 && found.indexOf(mp) >= 0) {
+          notes.push(t.name + ': uses ' + mp + ' but ament_target_dependencies(' + t.name +
+            ' ...) does not list it. On a real build that is a missing-header error.');
+        }
+      });
+
+      const spec = Analyze.toSpec(analysis, { file: srcPath, exe: t.name, pkg: p.name });
+      spec.lang = 'C++';
+
+      if (!t.installed) {
+        /* it compiled, but nothing put it where ros2 run looks */
+        notes.push(t.name + ': built, but never installed, so  ros2 run ' + p.name + ' ' + t.name +
+          '  will not find it. Add:\n      install(TARGETS ' + t.name + ' DESTINATION lib/${PROJECT_NAME})');
+        VFS.mkdir(installPrefix + '/../../build/' + p.name, true);
+        VFS.writeFile(installPrefix + '/../../build/' + p.name + '/' + t.name,
+          '(compiled, but not installed — see CMakeLists.txt)');
+        continue;
+      }
+
+      ROS.register(p.name + '/' + t.name, spec);
+      VFS.writeFile(installPrefix + '/lib/' + p.name + '/' + t.name,
+        '(compiled C++ executable built from ' + srcRel + ')');
+      analysis.warnings.forEach((w) => notes.push(t.name + ': ' + w));
+      const bits = [];
+      if (analysis.publishers.length) bits.push('publishes ' + analysis.publishers.map((x) => x.topic).join(', '));
+      if (analysis.subscriptions.length) bits.push('listens to ' + analysis.subscriptions.map((x) => x.topic).join(', '));
+      if (bits.length) notes.push(t.name + ' (C++): ' + bits.join('; ') + '.');
+    }
+    return { ok: true };
   }
 
   function parseMsgFields(text) {

@@ -10,6 +10,51 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.8.0] — 2026-08-29  ·  commit `4df4b60`
+
+C++ — and what the build is actually doing.
+
+### Added — C++ really runs
+- **`js/analyze_cpp.js`** reads rclcpp the same way the Python analyser reads
+  rclpy, and produces the identical shape, so the one spec builder runs either
+  language. It understands `class X : public rclcpp::Node`, `: Node("name")`,
+  `create_publisher<T>`, `create_subscription<T>` with `std::bind`,
+  `create_wall_timer(500ms, ...)`, `declare_parameter`, `RCLCPP_INFO` with
+  printf formatting, and `"text " + std::to_string(count_++)`
+- Your C++ node genuinely publishes, logs its counter, and appears in the graph.
+  A C++ talker and a Python listener really do talk to each other
+- The editor's live "what your node will do" readout works on C++ too, and says
+  which language it read
+
+### Added — the CMake build
+- `colcon build` now **builds ament_cmake packages by reading CMakeLists.txt**:
+  `find_package`, `add_executable`, `ament_target_dependencies` /
+  `target_link_libraries`, and `install(TARGETS ...)`
+- The three classic mistakes fail the way they really fail:
+  - no `ament_target_dependencies` → *rclcpp/rclcpp.hpp: No such file or directory*
+  - no `install(TARGETS ...)` → **builds green**, then *No executable found*
+  - a misspelled source → *CMake Error: Cannot find source file*
+- A scaffolded `CMakeLists.txt` now carries the three-step comment
+  (compile · link · install) instead of being nearly empty
+
+### Added — Level 6, five lessons (course is now 31)
+- **What "build" really does** — `src` / `build` / `install` / `log`, how colcon
+  finds packages, and the insight that `setup.py` and `CMakeLists.txt` put their
+  output in the *same* place, which is why `ros2 run` does not care about language
+- **Your first C++ package** — `--build-type ament_cmake`, reading CMakeLists
+  and package.xml side by side
+- **Write a C++ talker** — the same node as Level 4, with a line-by-line Python↔C++
+  table, plus the three CMake lines and what each one is for
+- **Write a C++ listener** — a second executable in one package, and a drill on
+  the three CMake errors
+- **C++ and Python, talking** — run the C++ talker and the Python listener
+  together. Two bubbles, one wire, two languages: the point of the whole course
+
+### Tests
+- 119 checks (up from 109): the C++ analyser, all three CMake failure modes, a
+  complete build producing a runnable node, its formatted log output, and a
+  Python node hearing a C++ node
+
 ## [1.7.0] — 2026-08-29  ·  commit `ea95a62`
 
 The phone build. Reported broken on a real device, and it was.
@@ -333,6 +378,7 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.8.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.8.0
 [1.7.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.6.0
 [1.5.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.5.0

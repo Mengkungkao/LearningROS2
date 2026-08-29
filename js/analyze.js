@@ -54,7 +54,7 @@
 
   function python(src) {
     const a = {
-      ok: true, errors: [], warnings: [],
+      ok: true, errors: [], warnings: [], lang: 'py',
       className: null, nodeName: null,
       imports: Object.create(null),
       publishers: [], subscriptions: [], services: [], timers: [], params: [],
@@ -264,9 +264,8 @@
 
     spec.start = function (node) {
       node.state.count = 0;
-      const init = a.defs.__init__ || '';
       const ctx = { count: 0, params: node.params };
-      logCalls(init).forEach((l) => node.log(interp(l, ctx), l.level));
+      logsIn(a, initBody(a), ctx).forEach((l) => node.log(l.text, l.level));
 
       a.timers.forEach((timer) => {
         node.every(timer.period, () => {
@@ -275,8 +274,10 @@
         });
       });
       if (!a.timers.length && a.publishers.length && !a.subscriptions.length) {
-        node.log('This node has a publisher but no timer, so it publishes nothing. ' +
-          'Add self.create_timer(1.0, self.timer_callback) to make it talk.', 'WARN');
+        node.log('This node has a publisher but no timer, so it publishes nothing. Add ' +
+          (a.lang === 'cpp'
+            ? 'create_wall_timer(500ms, std::bind(&Class::timer_callback, this))'
+            : 'self.create_timer(1.0, self.timer_callback)') + ' to make it talk.', 'WARN');
       }
     };
 
@@ -292,7 +293,50 @@
 
   function interp(l, ctx) { return l.fstring ? interpolate(l.text, ctx) : l.text; }
 
-  /** Run one python callback "in spirit": logs + field writes + publish. */
+  /* ---- language dispatch ------------------------------- */
+  const C = () => global.Analyze.cppHelpers;
+
+  /** The log lines in a body, already rendered, whichever language it is. */
+  function logsIn(a, body, ctx) {
+    if (a.lang === 'cpp') {
+      return C().logCalls(body).map((l) => ({
+        level: l.level,
+        text: l.stream ? C().resolveStream ? '' : String(l.fmt) : C().format(l.fmt, l.args, ctx)
+      }));
+    }
+    return logCalls(body).map((l) => ({ level: l.level, text: interp(l, ctx) }));
+  }
+
+  /** Which variable does this body publish on, and with which message? */
+  function publishIn(a, body) {
+    const m = a.lang === 'cpp'
+      ? body.match(/(\w+)\s*->\s*publish\s*\(\s*(\w+)\s*\)/)
+      : body.match(/self\.(\w+)\s*\.\s*publish\s*\(\s*(\w+)\s*\)/);
+    return m ? { varName: m[1], msgVar: m[2] } : null;
+  }
+
+  /** Fill a message from the assignments in a body. */
+  function buildMsg(a, body, msgVar, type, ctx) {
+    const msg = IFACE.template(type);
+    if (a.lang === 'cpp') {
+      C().fieldAssigns(body).filter((f) => f.target === msgVar).forEach((f) => {
+        setPath(msg, f.path, C().evalExpr(f.expr, ctx));
+      });
+    } else {
+      fieldAssigns(body).filter((f) => f.target === msgVar).forEach((f) => {
+        setPath(msg, f.path, f.str ? (f.fstring ? interpolate(f.value, ctx) : f.value) : f.value);
+      });
+    }
+    return msg;
+  }
+
+  /** The constructor body — where the start-up log lines live. */
+  function initBody(a) {
+    if (a.lang === 'cpp') return a.defs[a.className] || '';
+    return a.defs.__init__ || '';
+  }
+
+  /** Run one callback "in spirit": logs + field writes + publish. */
   function runCallback(node, a, cbName, incoming) {
     const body = a.defs[cbName] || '';
     const ctx = {
@@ -302,28 +346,26 @@
       params: node.params
     };
 
-    /* which publisher does this callback send on? */
-    const pubMatch = body.match(/self\.(\w+)\s*\.\s*publish\s*\(\s*(\w+)\s*\)/);
-    let published = null;
-    if (pubMatch) {
-      const varName = pubMatch[1], msgVar = pubMatch[2];
-      const pub = a.publishers.filter((p) => p.varName === varName)[0] || a.publishers[0];
-      if (pub) {
-        const msg = IFACE.template(pub.type);
-        fieldAssigns(body).filter((f) => f.target === msgVar).forEach((f) => {
-          setPath(msg, f.path, f.str ? (f.fstring ? interpolate(f.value, ctx) : f.value) : f.value);
-        });
+    const pub = publishIn(a, body);
+    if (pub) {
+      const publisher = a.publishers.filter((p) => p.varName === pub.varName)[0] || a.publishers[0];
+      if (publisher) {
+        const msg = buildMsg(a, body, pub.msgVar, publisher.type, ctx);
         ctx.outMsg = msg;
-        node.publish(pub.topic, msg, pub.type);
-        published = { topic: pub.topic, msg: msg };
+        ctx.outData = msg.data;
+        node.publish(publisher.topic, msg, publisher.type);
       }
     }
-    void published;
 
-    logCalls(body).forEach((l) => {
-      const c = Object.assign({}, ctx);
-      if (ctx.outMsg && /msg\.data/.test(l.text) && !incoming) c.msgData = ctx.outMsg.data;
-      node.log(interp(l, c), l.level);
+    logsIn(a, body, ctx).forEach((l) => {
+      let text = l.text;
+      /* a python f-string log that names msg.data while publishing means
+         the message it just built, not one that arrived */
+      if (a.lang !== 'cpp' && ctx.outMsg && !incoming) {
+        const c = Object.assign({}, ctx, { msgData: ctx.outMsg.data });
+        text = logsIn(a, body, c).filter((x) => x.level === l.level)[0].text;
+      }
+      node.log(text, l.level);
     });
   }
 
@@ -334,15 +376,27 @@
    */
   function describe(a) {
     const out = [];
-    if (a.nodeName) out.push({ icon: '🏷️', text: 'be a node called **' + a.nodeName + '**' });
-    else out.push({ icon: '❓', text: 'have no name yet — add `super().__init__(\'some_name\')`', cls: 'warn' });
+    if (a.nodeName) {
+      out.push({
+        icon: '🏷️',
+        text: 'be a node called **' + a.nodeName + '**' + (a.lang === 'cpp' ? ', written in **C++**' : '')
+      });
+    } else {
+      out.push({
+        icon: '❓',
+        text: a.lang === 'cpp'
+          ? 'have no name yet — add `: Node("some_name")` to the constructor'
+          : "have no name yet — add `super().__init__('some_name')`",
+        cls: 'warn'
+      });
+    }
 
     a.publishers.forEach((p) => {
-      const period = periodFor(a, p);
+      const per = periodFor(a, p);
       out.push({
         icon: '📤',
         text: 'publish **' + short(p.type) + '** on **' + topic(p.topic) + '**' +
-          (period ? ' every **' + period + 's** (' + rate(period) + ')' : ' — but nothing triggers it yet') +
+          (per ? ' every **' + per + 's** (' + rate(per) + ')' : ' — but nothing triggers it yet') +
           qosNote(p.qos)
       });
     });
@@ -364,7 +418,7 @@
 
     a.timers.forEach((t) => {
       const used = a.publishers.some((p) => periodFor(a, p) === String(t.period));
-      if (!used) out.push({ icon: '⏱️', text: 'run **' + t.cb + '()** every **' + t.period + 's**' });
+      if (!used) out.push({ icon: '⏱️', text: 'run **' + (t.cb || 'a callback') + '()** every **' + t.period + 's**' });
     });
 
     a.warnings.forEach((w) => out.push({ icon: '⚠️', text: w, cls: 'warn' }));
@@ -374,10 +428,9 @@
   /** Which timer fires the callback that publishes on this publisher? */
   function periodFor(a, pub) {
     for (const t of a.timers) {
-      const body = a.defs[t.cb] || '';
-      const m = body.match(/self\.(\w+)\s*\.\s*publish\s*\(/);
-      if (!m) continue;
-      if (!pub.varName || m[1] === pub.varName) return String(t.period);
+      const p = publishIn(a, a.defs[t.cb] || '');
+      if (!p) continue;
+      if (!pub.varName || p.varName === pub.varName) return String(t.period);
     }
     return null;
   }
@@ -398,6 +451,7 @@
 
   global.Analyze = {
     python: python, toSpec: toSpec, splitDefs: splitDefs, describe: describe,
-    logCalls: logCalls, interpolate: interpolate, KNOWN_TYPES: KNOWN_TYPES, qosFromText: qosFromText
+    logCalls: logCalls, interpolate: interpolate, KNOWN_TYPES: KNOWN_TYPES, qosFromText: qosFromText,
+    logsIn: logsIn, publishIn: publishIn, initBody: initBody
   };
 })(window);

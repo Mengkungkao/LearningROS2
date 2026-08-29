@@ -95,7 +95,7 @@ Same lesson, two registers. Kids read the left column; engineers read the right 
 
 ---
 
-## The course — 26 lessons
+## The course — 31 lessons
 
 **Level 1 · Talking to a computer** *(no ROS 2 at all yet)*
 `pwd` `ls` `cd` `mkdir` `touch` `echo >` `cat` `cp` `mv` `rm` `tree`
@@ -111,6 +111,12 @@ live feedback · remapping and namespaces
 **Level 4 · Writing your own code**
 Workspaces and packages · a publisher node · a subscriber node · a node that drives the
 robot · launch files
+
+**Level 6 · C++ and the build**
+What `colcon build` really does (`src`/`build`/`install`/`log`, and why both build
+systems land in the same place) · your first `ament_cmake` package · a C++ talker and
+listener with the three CMake lines that make them run · **C++ and Python talking to
+each other**
 
 **Level 5 · Pro moves**
 Custom `.msg` interfaces · parameters in your own code · `ros2 bag` record & replay ·
@@ -173,7 +179,9 @@ Being straight about this, because it matters for what you learn:
   subscriptions, timers, services, parameters, log lines and message field assignments —
   and imitates it faithfully. It is not a Python interpreter, so arbitrary logic (loops,
   imports, maths beyond simple field assignment) will not run
-* C++ packages scaffold and build, but their nodes do not execute here
+* **C++ runs too.** `analyze_cpp.js` reads rclcpp the same way the Python analyser reads
+  rclpy, `colcon build` reads your `CMakeLists.txt`, and the three classic CMake mistakes
+  fail the way they really fail. A C++ talker and a Python listener genuinely talk
 * Message rates are simplified (turtlesim pose is 10 Hz here, 62.5 Hz on the real thing)
 * On a real computer `ros2 run` blocks the terminal and you open a second one. Here nodes
   run in the background so a beginner is not stuck — the app says so, and teaches `kill`
@@ -219,13 +227,14 @@ Plain ES5-ish JavaScript, no framework, no bundler. Each file does one job:
 | `js/ros2cli.js` | `ros2 run/node/topic/service/param/action/interface/doctor` |
 | `js/workspace.js` | `ros2 pkg create`, `colcon build`, `ros2 launch`, `ros2 bag` |
 | `js/analyze.js` | reads your Python and turns it into a running node |
+| `js/analyze_cpp.js` | the same, for C++ / rclcpp |
 | `js/terminal.js` | the terminal UI: history, Tab-completion, Ctrl+C, streaming |
 | `js/graph.js` · `js/sim.js` · `js/panels.js` | the live views |
 | `js/dock.js` | which panel lives in which pane |
 | `js/mobile.js` | the phone build: sections, bottom bar, keyboard, command chips |
 | `js/layout.js` | draggable, magnetic dividers |
 | `js/highlight.js` | editor syntax colouring (tokenise, then escape) |
-| `js/lessons.js` · `js/lessons2.js` | the curriculum (pure data — easy to extend) |
+| `js/lessons.js` · `js/lessons2.js` · `js/lessons3.js` | the curriculum (pure data — easy to extend) |
 | `js/challenges.js` | the 12 open-ended challenges |
 | `js/backup.js` | save/load your whole workspace as one file |
 | `cheatsheet.html` | a printable one-page command reference |

@@ -36,6 +36,7 @@ git push origin --tags
 
 | Version | Commit | Summary |
 |---|---|---|
+| v1.8.0 | `4df4b60` | C++ nodes, the CMake build, Level 6 |
 | v1.7.0 | `ea95a62` | Fix: the phone build was broken; real mobile layout |
 | v1.6.0 | `de89326` | Hide the lessons panel, reading mode |
 | v1.5.0 | `639c1b3` | Split view (Robot + Graph) and magnetic dividers |
