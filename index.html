@@ -42,13 +42,21 @@
 <main>
 
   <!-- ============ LESSONS ============ -->
-  <aside id="lessons">
-    <div id="side-tabs">
+  <aside id="lessons" class="app-window" data-window="lessons">
+    <div class="windowbar">
+      <span class="window-grip" aria-hidden="true">⋮⋮</span>
+      <strong>Lessons</strong>
+      <span class="window-purpose">learn and track progress</span>
+      <button class="window-btn" data-window-action="minimize" title="Minimize lessons">—</button>
+      <button class="window-btn" data-window-action="hide-lessons" title="Hide lessons">×</button>
+    </div>
+    <div class="window-content">
+      <div id="side-tabs">
       <button data-view="lessons" class="on">📚 Lessons</button>
       <button data-view="challenges">🏆 Challenges</button>
-    </div>
+      </div>
 
-    <div id="lesson-view">
+      <div id="lesson-view">
       <div id="lesson-nav"></div>
       <div id="lesson-body"></div>
       <div class="lnav">
@@ -56,9 +64,9 @@
         <button id="lesson-next">Next lesson →</button>
         <button id="lesson-hide" title="Hide this panel (Ctrl+B)">⇤</button>
       </div>
-    </div>
+      </div>
 
-    <div id="challenge-view">
+      <div id="challenge-view">
       <div id="challenge-intro">
         <h2>🏆 Challenges</h2>
         <p>No instructions this time — just something that has to be <b>true</b> when you are done.
@@ -66,6 +74,7 @@
         <div id="challenge-score"></div>
       </div>
       <div id="challenge-list"></div>
+      </div>
     </div>
   </aside>
 
@@ -73,8 +82,15 @@
        aria-orientation="vertical" aria-label="resize the lessons panel" title="drag to resize · double-click to reset"></div>
 
   <!-- ============ TERMINAL ============ -->
-  <section id="centre">
-    <div id="terminal">
+  <section id="centre" class="app-window" data-window="centre">
+    <div class="windowbar">
+      <span class="window-grip" aria-hidden="true">⋮⋮</span>
+      <strong>Terminal</strong>
+      <span class="window-purpose">type commands and see what happens</span>
+      <button class="window-btn" data-window-action="minimize" title="Minimize terminal">—</button>
+    </div>
+    <div class="window-content">
+      <div id="terminal">
       <div class="termbar">
         <span class="dots"><i></i><i></i><i></i></span>
         <span class="ttitle">student@ros2 — bash<span class="long"> — your pretend Linux computer</span></span>
@@ -111,7 +127,7 @@
         <button data-cmd="kill all">kill all</button>
         <button data-cmd="clear">clear</button>
       </div>
-    </div>
+      </div>
 
     <div class="gutter row" data-gutter="explain" tabindex="0" role="separator"
          aria-orientation="horizontal" aria-label="resize the explanation panel" title="drag to resize · double-click to reset"></div>
@@ -122,6 +138,7 @@
         <button id="explain-bigger" title="make this bigger / smaller">⤢</button>
       </div>
       <div id="explain-feed"></div>
+      </div>
     </div>
   </section>
 
@@ -228,6 +245,7 @@
 <script src="js/ros2cli.js"></script>
 <script src="js/workspace.js"></script>
 <script src="js/terminal.js"></script>
+<script src="js/window-manager.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/graph.js"></script>
 <script src="js/dock.js"></script>
