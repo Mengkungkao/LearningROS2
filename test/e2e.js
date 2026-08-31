@@ -121,7 +121,7 @@ const server = http.createServer((req, res) => {
   check('interface show expands', (await out()).includes('float64 x'), await tail(10));
 
   // --- screenshot the robot panel while it has drawings
-  await page.click('#view-tabs button[data-panel="robot"]');
+  await page.click('#tabs-a button[data-panel="robot"]');
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'robot.png') });
 
@@ -143,7 +143,7 @@ const server = http.createServer((req, res) => {
 
   // --- editor: highlighting, live insight, and escaping (v1.1.0)
   await page.evaluate(() => { U.Bus.emit('editor:open', { path: '/home/student/ros2_ws/src/my_robot/my_robot/talker_node.py' }); });
-  await page.click('#view-tabs button[data-panel="editor"]');
+  await page.click('#tabs-a button[data-panel="editor"]');
   await page.waitForTimeout(300);
   const metrics = await page.evaluate(() => {
     const a = getComputedStyle(document.querySelector('#editor-area'));
@@ -233,7 +233,7 @@ const server = http.createServer((req, res) => {
   const drove = await page.evaluate(() => { const t = ROS.world.turtles.turtle1; return t ? Math.abs(t.x-5.544)+Math.abs(t.y-5.544) : 0; });
   check('my driver node moves the turtle', drove > 0.3, 'delta=' + drove);
 
-  await page.click('#view-tabs button[data-panel="graph"]');
+  await page.click('#tabs-a button[data-panel="graph"]');
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(SHOTS, 'graph.png') });
 
@@ -267,6 +267,81 @@ const server = http.createServer((req, res) => {
   const afterReplay = (await out()).slice(beforeReplay);
   check('bag replay reaches a live listener', afterReplay.includes('I heard: [Hello World'), afterReplay.slice(-200));
   await type('kill all');
+
+  // --- C++ and the CMake build (v1.8.0)
+  await type('kill all');
+  await type('cd ~/ros2_ws/src');
+  await type('ros2 pkg create cpp_pubsub --build-type ament_cmake --dependencies rclcpp std_msgs', 500);
+  check('an ament_cmake package scaffolds a CMakeLists',
+    await page.evaluate(() => VFS.exists('/home/student/ros2_ws/src/cpp_pubsub/CMakeLists.txt')));
+
+  await page.evaluate(() => App.openLesson('cpp-publisher'));
+  await page.waitForTimeout(300);
+  const cppSnips = await page.$$('.snip');
+  check('the C++ lesson ships its code', cppSnips.length === 2, 'found ' + cppSnips.length);
+  for (const sn of cppSnips) {
+    await sn.click();
+    await page.waitForTimeout(280);
+    await page.click('#editor-save');
+    await page.waitForTimeout(200);
+  }
+
+  // the analyser must read C++ as well as it reads Python
+  const cppRead = await page.evaluate(() => {
+    const src = VFS.readFile('/home/student/ros2_ws/src/cpp_pubsub/src/publisher_member_function.cpp');
+    const a = Analyze.cpp(src);
+    return { lang: a.lang, node: a.nodeName, topic: (a.publishers[0] || {}).topic,
+             type: (a.publishers[0] || {}).type, period: (a.timers[0] || {}).period,
+             warnings: a.warnings.length };
+  });
+  check('the analyser reads a C++ node',
+    cppRead.lang === 'cpp' && cppRead.node === 'minimal_publisher' &&
+    cppRead.topic === 'chatter' && cppRead.type === 'std_msgs/msg/String' &&
+    cppRead.period === 0.5 && cppRead.warnings === 0, JSON.stringify(cppRead));
+
+  // each CMake mistake must fail the way CMake really fails
+  const cmakePath = '/home/student/ros2_ws/src/cpp_pubsub/CMakeLists.txt';
+  const goodCmake = await page.evaluate((f) => VFS.readFile(f), cmakePath);
+  await type('cd ~/ros2_ws');
+
+  await page.evaluate((a) => VFS.writeFile(a[0], a[1].replace(/ament_target_dependencies[^\n]*\n/, '')),
+    [cmakePath, goodCmake]);
+  await type('colcon build', 700);
+  check('a target with no dependencies fails on the missing header',
+    (await out()).includes('rclcpp/rclcpp.hpp: No such file or directory'), await tail(6));
+
+  await page.evaluate((a) => VFS.writeFile(a[0], a[1].replace(/install\(TARGETS[\s\S]*?\)\n/, '')),
+    [cmakePath, goodCmake]);
+  await type('colcon build', 700);
+  check('a target that is never installed says so',
+    (await out()).includes('built, but never installed'), await tail(6));
+
+  await page.evaluate((a) => VFS.writeFile(a[0],
+    a[1].replace('src/publisher_member_function.cpp', 'src/typo_name.cpp')), [cmakePath, goodCmake]);
+  await type('colcon build', 700);
+  check('a misspelled source file fails like CMake does',
+    (await out()).includes('Cannot find source file'), await tail(6));
+
+  // and the whole thing works
+  await page.evaluate((a) => VFS.writeFile(a[0], a[1]), [cmakePath, goodCmake]);
+  await type('colcon build', 800);
+  await type('source install/setup.bash');
+  check('a complete CMakeLists produces a runnable executable',
+    await page.evaluate(() => !!ROS.programs['cpp_pubsub/talker']));
+  await type('ros2 run cpp_pubsub talker', 1600);
+  const cppLog = (await out()).split('\n').filter((l) => /Publishing:/.test(l)).slice(-1)[0] || '';
+  check('the C++ node runs, counts, and formats its log',
+    /minimal_publisher/.test(cppLog) && /Hello from C\+\+: \d+/.test(cppLog), cppLog);
+  check('and it appears in the graph like any other node',
+    await page.evaluate(() => !!ROS.topics['/chatter'] && ROS.topics['/chatter'].pubs.length > 0));
+
+  // the payoff: a Python node hearing a C++ node
+  await type('ros2 run demo_nodes_py listener', 2000);
+  const crossed = (await out()).split('\n').filter((l) => /I heard/.test(l)).slice(-1)[0] || '';
+  check('a Python node hears a C++ node',
+    /listener/.test(crossed) && /Hello from C\+\+/.test(crossed), crossed);
+  await type('kill all');
+  await type('cd ~/ros2_ws');
 
   // --- QoS (v1.3.0): the silent failure, using a camera like real life
   await type('kill all');
@@ -366,6 +441,262 @@ const server = http.createServer((req, res) => {
     (await out()).includes('source /opt/ros/jazzy/setup.bash'), await tail(3));
   await type('source /opt/ros/jazzy/setup.bash');
 
+  // --- split view + magnetic dividers (v1.5.0)
+  await type('kill all');
+  await type('ros2 run turtlesim turtlesim_node', 500);
+  await type('ros2 run turtlesim turtle_teleop_key', 400);
+  await page.evaluate(() => Dock.watchItHappen());
+  await page.waitForTimeout(600);
+  const split = await page.evaluate(() => ({
+    split: Dock.split,
+    robotIn: document.querySelector('#panel-robot').parentNode.id,
+    graphIn: document.querySelector('#panel-graph').parentNode.id,
+    bothOn: document.querySelector('#panel-robot').classList.contains('on') &&
+            document.querySelector('#panel-graph').classList.contains('on'),
+    sim: Math.round(document.querySelector('#sim-canvas').getBoundingClientRect().width),
+    graph: Math.round(document.querySelector('#graph-canvas').getBoundingClientRect().width)
+  }));
+  check('robot and graph show at the same time',
+    split.split && split.robotIn === 'body-a' && split.graphIn === 'body-b' && split.bothOn,
+    JSON.stringify(split));
+  check('both canvases get real space in the split', split.sim > 120 && split.graph > 200, JSON.stringify(split));
+
+  // a d-pad press must produce a visible message trace
+  const upBtn = await page.$('.dpad button.up');
+  await upBtn.dispatchEvent('mousedown');
+  await page.waitForTimeout(220);
+  await upBtn.dispatchEvent('mouseup');
+  await page.waitForTimeout(400);
+  const trace = await page.evaluate(() => document.querySelector('#sim-wire-body').innerText.replace(/\s+/g, ' '));
+  check('pressing a button shows the message it sent',
+    /cmd_vel/.test(trace) && /Twist/.test(trace) && /linear\.x 2\.00/.test(trace) && /forwards/.test(trace), trace);
+
+  // a panel can only live in one pane: asking pane B for the robot swaps them
+  await page.click('#tabs-b button[data-panel="robot"]');
+  await page.waitForTimeout(400);
+  const swapped = await page.evaluate(() => ({ a: Dock.at.a, b: Dock.at.b,
+    robotIn: document.querySelector('#panel-robot').parentNode.id }));
+  check('moving a panel across swaps rather than duplicates',
+    swapped.b === 'robot' && swapped.a === 'graph' && swapped.robotIn === 'body-b', JSON.stringify(swapped));
+
+  // magnets
+  const snapTest = await page.evaluate(async () => {
+    const out = {};
+    const el = document.querySelector('.gutter[data-gutter="lessons"]');
+    const r = el.getBoundingClientRect();
+    const send = (type, x, extra) => el.dispatchEvent(Object.assign(
+      new MouseEvent(type, { bubbles: true, clientX: x, clientY: r.top + 10, button: 0 }), extra || {}));
+    const win = (type, x, shift) => window.dispatchEvent(new MouseEvent(type,
+      { bubbles: true, clientX: x, clientY: r.top + 10, shiftKey: !!shift }));
+
+    Layout.set('lessons', 320);
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + 3, clientY: r.top + 10, button: 0 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 3 + 74, clientY: r.top + 10 }));
+    out.snapped = Layout.values.lessons;
+    out.guideHit = document.querySelector('#snap-guide').classList.contains('hit');
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.left + 77, clientY: r.top + 10 }));
+
+    Layout.set('lessons', 320);
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + 3, clientY: r.top + 10, button: 0 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 3 + 74, clientY: r.top + 10, shiftKey: true }));
+    out.unsnapped = Layout.values.lessons;
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.left + 77, clientY: r.top + 10 }));
+    Layout.set('lessons', Layout.def('lessons'));
+    void send; void win;
+    return out;
+  });
+  check('a divider snaps to the nearest sensible size',
+    snapTest.snapped === 400 && snapTest.guideHit, JSON.stringify(snapTest));
+  check('holding Shift turns the magnet off',
+    snapTest.unsnapped === 394, JSON.stringify(snapTest));
+
+  const persisted = await page.evaluate(() => { Layout.set('views', 520); return Layout.values.views; });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  check('layout sizes survive a reload',
+    await page.evaluate(() => Layout.values.views) === persisted, String(persisted));
+  await page.evaluate(() => { Layout.set('views', Layout.def('views')); Dock.setSplit(false); });
+  await page.waitForTimeout(300);
+  await type('source /opt/ros/jazzy/setup.bash');
+  await type('kill all');
+
+  // --- the header must fit a phone (v1.4.1)
+  const phone = await browser.newPage();
+  await phone.setViewportSize({ width: 320, height: 640 });
+  await phone.goto('http://localhost:' + PORT + '/', { waitUntil: 'networkidle' });
+  await phone.waitForTimeout(300);
+  const fits = await phone.evaluate(() => {
+    const vw = window.innerWidth;
+    const r = document.querySelector('#btn-reset').getBoundingClientRect();
+    const m = document.querySelector('#btn-sidebar').getBoundingClientRect();
+    return { vw, headerNeeds: document.querySelector('header').scrollWidth,
+             resetVisible: r.right <= vw + 1 && r.left >= -1, menuVisible: m.right <= vw + 1 };
+  });
+  check('every header button is reachable on a 320px phone',
+    fits.headerNeeds <= fits.vw + 1 && fits.resetVisible && fits.menuVisible, JSON.stringify(fits));
+  await phone.close();
+
+  // --- hiding the lessons, and reading mode (v1.6.0)
+  const widthOf = (sel) => page.evaluate((s) => {
+    const e = document.querySelector(s);
+    return e ? Math.round(e.getBoundingClientRect().width) : -1;
+  }, sel);
+  const termBefore = await widthOf('#terminal');
+  await page.click('#lesson-hide');
+  await page.waitForTimeout(400);
+  const termHidden = await widthOf('#terminal');
+  check('hiding the lessons gives the terminal the space',
+    termHidden > termBefore + 200, termBefore + ' -> ' + termHidden);
+  check('the terminal is still usable with the lessons hidden', termHidden > 400, String(termHidden));
+  check('a way back is offered', await page.isVisible('#lessons-peek'));
+  await type('echo still-typing-fine', 400);
+  check('you can still type with the lessons hidden',
+    (await out()).includes('still-typing-fine'), await tail(2));
+  await page.click('#lessons-peek');
+  await page.waitForTimeout(400);
+  check('the lessons come back the same size',
+    await widthOf('#terminal') === termBefore, String(await widthOf('#terminal')));
+
+  await page.click('#term-out');
+  await page.keyboard.press('Control+b');
+  await page.waitForTimeout(350);
+  check('Ctrl+B toggles the lessons', await page.evaluate(() => Layout.isHidden('lessons')));
+  await page.keyboard.press('Control+b');
+  await page.waitForTimeout(350);
+  check('Ctrl+B brings them back', !await page.evaluate(() => Layout.isHidden('lessons')));
+
+  const explainBefore = await page.evaluate(() => Math.round(document.querySelector('#explain').getBoundingClientRect().height));
+  await page.click('#btn-focus');
+  await page.waitForTimeout(500);
+  const reading = await page.evaluate(() => ({
+    on: document.body.classList.contains('reading-mode'),
+    lessonsHidden: Layout.isHidden('lessons'),
+    explain: Math.round(document.querySelector('#explain').getBoundingClientRect().height),
+    terminal: Math.round(document.querySelector('#terminal').getBoundingClientRect().height),
+    font: parseFloat(getComputedStyle(document.querySelector('.ecard')).fontSize)
+  }));
+  check('reading mode hides the lessons and enlarges the explanations',
+    reading.on && reading.lessonsHidden && reading.explain > explainBefore + 100 && reading.font >= 14,
+    JSON.stringify(reading));
+  check('reading mode still leaves a usable terminal', reading.terminal > 180, String(reading.terminal));
+  await page.click('#btn-focus');
+  await page.waitForTimeout(500);
+  check('leaving reading mode restores what was there',
+    !await page.evaluate(() => document.body.classList.contains('reading-mode')) &&
+    !await page.evaluate(() => Layout.isHidden('lessons')) &&
+    Math.abs(await page.evaluate(() => Math.round(document.querySelector('#explain').getBoundingClientRect().height)) - explainBefore) < 4);
+
+  // --- the phone build (v1.7.0)
+  // The old mobile checks only asserted "no horizontal overflow", which was
+  // true while #views was squashed to 42px. These check real geometry.
+  const mob = await browser.newPage({
+    viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 ' +
+      '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  });
+  const mobErrors = [];
+  mob.on('pageerror', (e) => mobErrors.push(e.message));
+  mob.on('console', (m) => { if (m.type() === 'error') mobErrors.push(m.text()); });
+  await mob.goto('http://localhost:' + PORT + '/', { waitUntil: 'networkidle' });
+  await mob.waitForTimeout(800);
+
+  const mBox = (sel) => mob.evaluate((s) => {
+    const e = document.querySelector(s);
+    if (!e) return null;
+    const b = e.getBoundingClientRect();
+    return { y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) };
+  }, sel);
+
+  check('the phone gets the section layout, not the desktop grid',
+    await mob.evaluate(() => Mobile.on && document.body.classList.contains('mobile-mode')));
+  check('the bottom bar is there', (await mBox('#mobile-bar')).h >= 44);
+
+  await mob.click('#mobile-bar button[data-section="views"]');
+  await mob.waitForTimeout(500);
+  const mViews = await mBox('#views');
+  check('the live view fills the screen instead of collapsing to its tab strip',
+    mViews.h > 300 && mViews.w >= 380, JSON.stringify(mViews));
+
+  const inputFont = await mob.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector('#term-input')).fontSize));
+  check('the terminal input is 16px, so iOS does not zoom on focus', inputFont >= 16, String(inputFont));
+
+  const mType = async (c, w = 400) => {
+    await mob.click('#mobile-bar button[data-section="terminal"]');
+    await mob.waitForTimeout(200);
+    await mob.fill('#term-input', c);
+    await mob.press('#term-input', 'Enter');
+    await mob.waitForTimeout(w);
+  };
+  await mType('source /opt/ros/jazzy/setup.bash');
+  await mType('ros2 run turtlesim turtlesim_node', 700);
+  check('a suggestion badges the Live view instead of yanking the screen away',
+    await mob.evaluate(() => Mobile.section === 'terminal' &&
+      document.querySelector('#mobile-bar button[data-section="views"]').classList.contains('nudge')));
+
+  await mType('ros2 run turtlesim turtle_teleop_key', 500);
+  await mob.click('#mobile-bar button[data-section="views"]');
+  await mob.waitForTimeout(600);
+  const mCanvas = await mBox('#sim-canvas');
+  check('the turtle gets a big canvas, with the pad floating over it',
+    mCanvas.h > 280 && await mob.evaluate(() =>
+      document.querySelector('.canvaswrap .dpad') !== null), JSON.stringify(mCanvas));
+  check('the hint tells a phone to tap, not to press arrow keys',
+    /Tap the/.test(await mob.evaluate(() => document.querySelector('#sim-hint').innerText)));
+
+  const padUp = await mob.$('.dpad button.up');
+  for (let i = 0; i < 5; i++) {
+    await padUp.dispatchEvent('touchstart');
+    await mob.waitForTimeout(120);
+    await padUp.dispatchEvent('touchend');
+  }
+  await mob.waitForTimeout(400);
+  check('the turtle drives from touch alone',
+    await mob.evaluate(() => Math.abs(ROS.world.turtles.turtle1.x - 5.544) > 0.4));
+
+  // tapping a lesson command must load ALL of it, at once
+  await mob.evaluate(() => App.openLesson('ros-turtle'));
+  await mob.click('#mobile-bar button[data-section="terminal"]');
+  await mob.waitForTimeout(400);
+  const chipCount = await mob.evaluate(() => document.querySelectorAll('#lesson-chips button').length);
+  check('the lesson commands are tappable chips', chipCount >= 3, String(chipCount));
+  const wanted = await mob.evaluate(() => document.querySelector('#lesson-chips button').title);
+  await mob.click('#lesson-chips button');
+  await mob.waitForTimeout(150);
+  check('tapping a command loads the whole line immediately',
+    await mob.inputValue('#term-input') === wanted,
+    JSON.stringify(await mob.inputValue('#term-input')) + ' vs ' + JSON.stringify(wanted));
+
+  // folding the explanations must not take the button that unfolds them
+  const termBefore2 = (await mBox('#terminal')).h;
+  await mob.click('#explain-bigger');
+  await mob.waitForTimeout(400);
+  const termFolded = (await mBox('#terminal')).h;
+  check('folding the explanations gives the terminal the room', termFolded > termBefore2 + 80,
+    termBefore2 + ' -> ' + termFolded);
+  check('the button that unfolds them is still on screen', await mob.isVisible('#explain-bigger'));
+  await mob.click('#explain-bigger');
+  await mob.waitForTimeout(300);
+
+  // a phone on its side must not fall back to the desktop layout
+  await mob.setViewportSize({ width: 844, height: 390 });
+  await mob.waitForTimeout(600);
+  await mob.click('#mobile-bar button[data-section="terminal"]');
+  await mob.waitForTimeout(400);
+  const land = await mob.evaluate(() => ({
+    mobile: Mobile.on,
+    term: Math.round(document.querySelector('#terminal').getBoundingClientRect().height),
+    inputOnScreen: (() => {
+      const r = document.querySelector('#term-input').getBoundingClientRect();
+      return r.top > 0 && r.bottom < window.innerHeight;
+    })()
+  }));
+  check('a landscape phone keeps the section layout and a usable terminal',
+    land.mobile && land.term > 120 && land.inputOnScreen, JSON.stringify(land));
+
+  check('the phone build logs no errors', mobErrors.length === 0, mobErrors.slice(0, 3).join(' | '));
+  await mob.close();
+
   // --- printable cheat sheet (v1.4.0)
   const sheet = await browser.newPage();
   const sheetErrors = [];
@@ -407,7 +738,7 @@ const server = http.createServer((req, res) => {
   const xp = await page.evaluate(() => App.xp);
   check('xp awarded', xp > 0, 'xp=' + xp);
 
-  await page.click('#view-tabs button[data-panel="files"]');
+  await page.click('#tabs-a button[data-panel="files"]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(SHOTS, 'full.png'), fullPage: false });
 

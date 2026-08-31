@@ -10,6 +10,198 @@ See [RELEASING.md](RELEASING.md) — including why the tags are not on the remot
 
 ---
 
+## [1.8.0] — 2026-08-29  ·  commit `4df4b60`
+
+C++ — and what the build is actually doing.
+
+### Added — C++ really runs
+- **`js/analyze_cpp.js`** reads rclcpp the same way the Python analyser reads
+  rclpy, and produces the identical shape, so the one spec builder runs either
+  language. It understands `class X : public rclcpp::Node`, `: Node("name")`,
+  `create_publisher<T>`, `create_subscription<T>` with `std::bind`,
+  `create_wall_timer(500ms, ...)`, `declare_parameter`, `RCLCPP_INFO` with
+  printf formatting, and `"text " + std::to_string(count_++)`
+- Your C++ node genuinely publishes, logs its counter, and appears in the graph.
+  A C++ talker and a Python listener really do talk to each other
+- The editor's live "what your node will do" readout works on C++ too, and says
+  which language it read
+
+### Added — the CMake build
+- `colcon build` now **builds ament_cmake packages by reading CMakeLists.txt**:
+  `find_package`, `add_executable`, `ament_target_dependencies` /
+  `target_link_libraries`, and `install(TARGETS ...)`
+- The three classic mistakes fail the way they really fail:
+  - no `ament_target_dependencies` → *rclcpp/rclcpp.hpp: No such file or directory*
+  - no `install(TARGETS ...)` → **builds green**, then *No executable found*
+  - a misspelled source → *CMake Error: Cannot find source file*
+- A scaffolded `CMakeLists.txt` now carries the three-step comment
+  (compile · link · install) instead of being nearly empty
+
+### Added — Level 6, five lessons (course is now 31)
+- **What "build" really does** — `src` / `build` / `install` / `log`, how colcon
+  finds packages, and the insight that `setup.py` and `CMakeLists.txt` put their
+  output in the *same* place, which is why `ros2 run` does not care about language
+- **Your first C++ package** — `--build-type ament_cmake`, reading CMakeLists
+  and package.xml side by side
+- **Write a C++ talker** — the same node as Level 4, with a line-by-line Python↔C++
+  table, plus the three CMake lines and what each one is for
+- **Write a C++ listener** — a second executable in one package, and a drill on
+  the three CMake errors
+- **C++ and Python, talking** — run the C++ talker and the Python listener
+  together. Two bubbles, one wire, two languages: the point of the whole course
+
+### Tests
+- 119 checks (up from 109): the C++ analyser, all three CMake failure modes, a
+  complete build producing a runnable node, its formatted log output, and a
+  Python node hearing a C++ node
+
+## [1.7.0] — 2026-08-29  ·  commit `ea95a62`
+
+The phone build. Reported broken on a real device, and it was.
+
+### Fixed
+- **The live view was 42px tall on every phone** — the tab strip and nothing
+  else, so Files, Graph, Robot and Inspect were effectively gone. v1.5.0 added
+  two dividers to `main`, but the mobile rule still declared only two grid rows,
+  so the five children fought over them: the lessons divider took a **292px
+  invisible row** at the top and `#views` was left with whatever remained
+- **Tapping a command ran a truncated version of it.** Command buttons animated
+  their text in one character at a time, so pressing Enter early submitted
+  something like `ros2 run tur`. Command buttons now load the whole line at
+  once, and Enter during any remaining animation completes the line instead of
+  submitting half of it
+- **Folding the explanations hid the button that unfolds them.** The panel now
+  keeps its bar and folds only the feed
+- **A phone held sideways** (844×390) was wide enough to escape the phone rules
+  and far too short for three columns — it gave a 102px terminal. The breakpoint
+  is now narrow **or** short
+- Canvases did not resize when a divider was dragged; they only followed window
+  resizes
+- The lessons section was 88% of the screen width, left over from the drawer
+
+### Added
+- **Three full-height sections behind a bottom bar** — 📚 Lessons, ⌨️ Terminal,
+  👁️ Live view — instead of squeezing a three-column desktop layout onto 390px.
+  The turtle canvas went from unusable to 386px on an iPhone 13
+- **The D-pad floats over the canvas** like a game controller, so the buttons
+  stop stealing the turtle's height
+- **Tappable lesson commands.** The current lesson's commands sit above the
+  keyboard as chips; one tap loads the line and you still press Enter yourself.
+  Typing `ros2 topic pub --once /turtle1/cmd_vel geometry_msgs/msg/Twist
+  "{linear: {x: 2.0}}"` on glass was never going to happen
+- **Keyboard-aware sizing.** A phone keyboard covers the screen without changing
+  `window.innerHeight`, so the app followed `visualViewport` instead; the prompt
+  stays visible while you type
+- A suggestion **badges** the Live view button rather than yanking the screen
+  away mid-thought
+- The split divider stays draggable on a phone with a thumb-sized target, since
+  it is the only way to rebalance the two panes there
+- Landscape gets trimmed chrome; the explanations fold away with one tap
+
+### Changed
+- The terminal input is 16px on mobile, because iOS zooms the whole page when it
+  focuses anything smaller
+- Touch-sized tabs, chips, quickbar and lesson rows
+- The turtle hint says "tap the ▲ ◀ ▼ ▶ buttons" on a phone instead of telling
+  it to press arrow keys it does not have
+
+### Tests
+- 109 checks (up from 95), 14 of them a real phone context. The old mobile
+  checks only asserted "no horizontal overflow" — which was perfectly true while
+  the live view was 42px tall. The new ones assert actual geometry: the live
+  view fills the screen, the canvas is big, the input is 16px, a tapped command
+  arrives whole, folding keeps its unfold button, and a landscape phone keeps a
+  usable terminal
+
+## [1.6.0] — 2026-08-28  ·  commit `de89326`
+
+Room to read.
+
+### Added
+- **Hide the lessons.** The ⇤ button at the foot of the lessons panel tucks it
+  away and hands the space to the terminal — on a 1600px screen that is 846px of
+  terminal becoming 1173px. A slim **📚 Lessons** tab on the left edge brings it
+  back, and **Ctrl+B** toggles it from anywhere. Dragging the lessons divider
+  nearly shut does the same thing
+- **📖 Read — reading mode** (**Ctrl+E**). One button for when you want to read
+  what just happened rather than do the next step: the lessons tuck away, the
+  "What just happened?" panel grows to about 40% of the window, and its text
+  steps up to a comfortable size. Press it again and everything returns exactly
+  as it was, including the sizes you had chosen. The choice is remembered
+- A ⤢ button on the explanation panel toggles it between its normal and double
+  height without leaving reading mode
+
+### Fixed
+- Hiding a side column used to collapse the terminal to **zero width**:
+  `display:none` took the column out of the CSS grid, so every later item slid
+  left into a zero-width track. Hidden columns now stay in the grid at zero
+  width instead
+- The 📚 peek tab no longer sits on top of the terminal text
+- The new 📖 Read button is hidden below 640px, where it would have pushed
+  ↺ Reset off a phone screen again (the v1.4.1 regression test caught this
+  before it shipped)
+
+### Tests
+- 95 checks (up from 85): the terminal actually gains the space and stays
+  usable and typeable, a way back is always offered, Ctrl+B toggles, reading
+  mode enlarges the explanations while leaving a usable terminal, and leaving
+  reading mode restores the previous sizes exactly
+
+## [1.5.0] — 2026-08-28  ·  commit `639c1b3`
+
+Watch the cause and the effect at the same moment.
+
+### Added
+- **Split view.** The right-hand column can hold two panels at once, each with
+  its own tabs. The ⫽ Split button opens it; a *Watch it happen* button under
+  the turtle sets up the pairing that teaches the most — **Robot on top, Graph
+  underneath**. Press an arrow key and you see all three parts of one event
+  together: the message going out, a green dot crossing the wire, and the turtle
+  moving when it arrives
+- **"The message your press just sent"** — a strip under the turtle spelling out
+  the actual Twist behind every button press: the topic, the type, who sent it,
+  and `linear.x` / `angular.z` with the live numbers picked out and read back in
+  words ("→ forwards", "↺ turning left"). It reacts to *any* source, so it works
+  for the arrow keys, for `ros2 topic pub`, and for the student's own driver node
+- Topic pills in the graph glow as traffic crosses them, so the eye follows the
+  message rather than hunting for it
+- **Magnetic dividers.** Every divider — lessons, live views, the explanation
+  feed, and the split itself — can be dragged. Each pulls towards sensible sizes
+  and clicks into place with a guide line and a label (`¼`, `⅓`, `half`, `⅔`,
+  `¾`, `wide`, `default`). **Hold Shift** to switch the magnet off and place it
+  exactly. Double-click resets. Arrow keys work when a divider has focus, and
+  sizes are remembered
+- Dragging the lessons or explanation divider nearly shut closes that panel
+
+### Changed
+- A panel can only be in one pane at a time, so asking pane B for the Robot
+  *swaps* the two panes rather than making a panel vanish
+- Panel suggestions (the "follow along automatically" behaviour) only ever touch
+  the primary pane; a pane you arranged on purpose is left alone
+- Tab labels collapse to icons automatically whenever the strip would otherwise
+  scroll, and the robot's controls get more compact in a short split pane
+- Lesson 8 now mentions the split, and adds `ros2 topic echo /turtle1/cmd_vel`
+  to its cheat sheet — you can watch your own key presses arrive as text
+
+### Tests
+- 85 checks (up from 78): both panels visible with real canvas space, a button
+  press producing the right message trace, panes swapping rather than
+  duplicating, dividers snapping, Shift defeating the magnet, and sizes
+  surviving a reload
+
+## [1.4.1] — 2026-08-27  ·  commit `537b017`
+
+### Fixed
+- **The header did not fit on a phone.** It needed 414px, but phones give
+  320–393px, so the ↺ Reset button sat off the right edge where it could not be
+  tapped — on every phone tested, including a 320px iPhone SE. Below 640px the
+  wordmark "Academy" and the Simple/Pro labels now collapse to their emoji.
+  Words go; buttons stay
+
+### Tests
+- 78 checks (up from 77): a 320px viewport must be able to reach every header
+  button, so this cannot regress
+
 ## [1.4.0] — 2026-08-26  ·  commit `e36953a`
 
 Your work stops being trapped in one browser, and there is something to print.
@@ -186,6 +378,11 @@ message types.
 - End-to-end Playwright suite (50 checks) in `test/`, runnable with `npm test`,
   which fails on any page-level JavaScript error
 
+[1.8.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.8.0
+[1.7.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.7.0
+[1.6.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.6.0
+[1.5.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.5.0
+[1.4.1]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.1
 [1.4.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Mengkungkao/LearningROS2/releases/tag/v1.2.0

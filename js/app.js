@@ -34,12 +34,15 @@
       this.buildSidebar();
       this.buildChallenges();
       this.bindChrome();
+      global.Mobile.init();
 
       Bus.on('command', (c) => { this.history.push(c.line); this.check(); this.saveSoon(); });
       Bus.on('editor:saved', () => { this.check(); this.saveSoon(); });
       Bus.on('vfs:change', () => this.saveSoon());
       Bus.on('ros:sourced', () => this.check());
       setInterval(() => this.check(), 1200);          // for "is it running?" style tasks
+
+      if (U.Store.get('ros2academy.reading', false)) this.setReading(true);
 
       const last = U.Store.get('ros2academy.lastLesson', null);
       this.openLesson(last && this.byId(last) ? last : this.lessons[0].id, true);
@@ -118,6 +121,17 @@
         Term.write('[all nodes stopped — your files are untouched]', 'dim');
         Term.write('');
       });
+      U.$('#explain-bigger').addEventListener('click', () => {
+        if (global.Mobile && global.Mobile.on) {
+          document.body.classList.toggle('explain-collapsed');
+          global.Mobile.reflow();
+          return;
+        }
+        const L = global.Layout;
+        const big = L.def('explain') * 2;
+        L.set('explain', L.values.explain >= big - 10 ? L.def('explain') : big);
+      });
+
       U.$('#btn-backup').addEventListener('click', () => {
         const r = global.Backup.download();
         Bus.emit('explain', {
@@ -136,9 +150,17 @@
           });
         });
       });
-      U.$('#btn-sidebar').addEventListener('click', () => {
-        if (global.WindowManager) global.WindowManager.toggleLessons();
-        else document.body.classList.toggle('nav-open');
+      /* On a phone the sidebar is a drawer; on a desktop it is a column
+         you can hide. One button, the right behaviour for the screen. */
+      U.$('#btn-sidebar').addEventListener('click', () => this.toggleLessons());
+      U.$('#lesson-hide').addEventListener('click', () => this.toggleLessons(false));
+      U.$('#lessons-peek').addEventListener('click', () => this.toggleLessons(true));
+      U.$('#btn-focus').addEventListener('click', () => this.setReading(!this.reading));
+
+      document.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+        if (e.key === 'b' || e.key === 'B') { e.preventDefault(); this.toggleLessons(); }
+        else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); this.setReading(!this.reading); }
       });
       U.$$('#side-tabs button').forEach((b) => {
         b.addEventListener('click', () => this.setView(b.getAttribute('data-view')));
@@ -150,7 +172,7 @@
         b.addEventListener('click', () => {
           const cmd = b.getAttribute('data-cmd');
           if (cmd === '__ctrlc') { Term.interrupt(); return; }
-          Bus.emit('term:type', { text: cmd, run: b.getAttribute('data-run') !== 'no' });
+          Bus.emit('term:type', { text: cmd, run: b.getAttribute('data-run') !== 'no', instant: true });
         });
       });
     },
@@ -232,6 +254,55 @@
       }
     },
 
+    /** Hide or show the lessons column (a drawer on a narrow screen). */
+    toggleLessons(force) {
+      if (global.Mobile && global.Mobile.on) {
+        const showing = global.Mobile.section === 'lessons';
+        global.Mobile.go(showing ? 'terminal' : 'lessons', true);
+        return !showing;
+      }
+      const drawer = window.matchMedia('(max-width: 1180px)').matches;
+      if (drawer) {
+        const open = force === undefined ? !document.body.classList.contains('nav-open') : force;
+        document.body.classList.toggle('nav-open', open);
+        return open;
+      }
+      const L = global.Layout;
+      const hidden = L.isHidden('lessons');
+      const show = force === undefined ? hidden : force;
+      L.set('lessons', show ? (this._lessonWidth || L.def('lessons')) : 0);
+      if (!show) this._lessonWidth = Math.max(L.def('lessons'), this._lessonWidth || 0);
+      if (!show && this.reading === undefined) { /* nothing */ }
+      return show;
+    },
+
+    /**
+     * Reading mode: lessons out of the way, explanations given real room.
+     * For when you want to read what just happened, not do the next step.
+     */
+    setReading(on) {
+      this.reading = on;
+      document.body.classList.toggle('reading-mode', on);
+      U.$('#btn-focus').classList.toggle('on', on);
+      const L = global.Layout;
+      if (on) {
+        this._before = { lessons: L.values.lessons, explain: L.values.explain };
+        this.toggleLessons(false);
+        L.set('explain', Math.max(L.def('explain') * 2, Math.round(window.innerHeight * 0.42)));
+        Bus.emit('explain', {
+          kid: '**Reading mode.** The lessons are tucked away and this panel is big, so the ' +
+            'explanations are easy to read. Press the 📖 button again (or Ctrl+E) to go back.',
+          pro: 'Reading mode: lessons collapsed, explanation pane enlarged.'
+        });
+      } else {
+        const b = this._before || {};
+        L.set('explain', b.explain || L.def('explain'));
+        this.toggleLessons(true);
+        if (b.lessons === 0) this.toggleLessons(false);
+      }
+      U.Store.set('ros2academy.reading', on);
+    },
+
     setMode(m) {
       this.mode = m;
       document.body.classList.toggle('pro-mode', m === 'pro');
@@ -250,7 +321,8 @@
         2: 'Level 2 · Meeting ROS 2',
         3: 'Level 3 · Poking the robot',
         4: 'Level 4 · Writing your own code',
-        5: 'Level 5 · Pro moves'
+        5: 'Level 5 · Pro moves',
+        6: 'Level 6 · C++ and the build'
       };
       Object.keys(levels).sort().forEach((lv) => {
         nav.appendChild(el('div', { class: 'navlevel', text: titles[lv] || 'Level ' + lv }));
@@ -353,7 +425,7 @@
         lesson.cheats.forEach((c) => {
           wrap.appendChild(el('button', {
             class: 'cheat', title: 'Click to type it into the terminal',
-            onClick: () => Bus.emit('term:type', { text: c, run: false })
+            onClick: () => Bus.emit('term:type', { text: c, run: false, instant: true })
           }, [c]));
         });
         body.appendChild(wrap);
@@ -361,6 +433,7 @@
       }
 
       if (lesson.panel) Panels.show(lesson.panel);
+      Bus.emit('lesson:open', { id: id });
       this.check(true);
 
       if (!quiet) {

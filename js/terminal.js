@@ -34,7 +34,7 @@
       Bus.on('term:clear', () => this.clear());
       Bus.on('term:endstream', () => this.endStream(true));
       Bus.on('vfs:cwd', () => this.setPrompt());
-      Bus.on('term:type', (p) => this.typeCommand(p.text, p.run !== false));
+      Bus.on('term:type', (p) => this.typeCommand(p.text, p.run !== false, p.instant));
 
       this.setPrompt();
       this.banner();
@@ -164,6 +164,9 @@
     onKey(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
+        /* mid-animation, Enter finishes the line rather than running a
+           half-typed command */
+        if (this.typing) { this.finishTyping(); return; }
         const line = this.input.value;
         this.input.value = '';
         this.submit(line);
@@ -282,10 +285,25 @@
     },
 
     /* ---- auto-typing (the "Show me" button) ------------- */
-    typeCommand(text, run) {
+    /**
+     * @param instant  put the whole line in at once. Tapping a command
+     *   button is a request for that command, not a typing demo — and an
+     *   animation you can interrupt with Enter runs a truncated command.
+     */
+    typeCommand(text, run, instant) {
       if (this.typing) { clearInterval(this.typing); this.typing = null; }
       if (this.stream) this.endStream(true);
+      this.pending = { text: text, run: !!run };
       this.input.value = '';
+
+      if (instant) {
+        this.input.value = text;
+        this.toEnd();
+        this.focus();
+        if (run) setTimeout(() => { this.input.value = ''; this.submit(text); }, 120);
+        return;
+      }
+
       this.focus();
       let i = 0;
       this.typing = setInterval(() => {
@@ -296,6 +314,15 @@
           if (run) setTimeout(() => { const v = this.input.value; this.input.value = ''; this.submit(v); }, 260);
         }
       }, 32);
+    },
+
+    /** Jump to the end of an in-progress typewriter. */
+    finishTyping() {
+      if (!this.typing) return;
+      clearInterval(this.typing);
+      this.typing = null;
+      if (this.pending) this.input.value = this.pending.text;
+      this.toEnd();
     }
   };
 

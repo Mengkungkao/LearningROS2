@@ -107,6 +107,8 @@
 
     onMessage(m) {
       if (!this.visibleTopic(m.topic)) return;
+      const box = this.items['t:' + m.topic];
+      if (box) box.hot = Date.now();          // brief glow, so the eye follows the traffic
       this.edges.forEach((e) => {
         if (e.topic !== m.topic) return;
         if (e.from[0] === 'n' && m.from && e.from !== 'n:' + m.from) return;   // only the sender's wire
@@ -249,10 +251,16 @@
           ctx.fillStyle = g;
           ctx.strokeStyle = 'rgba(160,190,255,.65)';
         } else {
-          ctx.fillStyle = 'rgba(20,70,60,.92)';
-          ctx.strokeStyle = 'rgba(90,230,190,.7)';
+          const heat = it.hot ? Math.max(0, 1 - (Date.now() - it.hot) / 420) : 0;
+          ctx.fillStyle = heat ? 'rgba(28,105,88,' + (0.92 + heat * 0.08) + ')' : 'rgba(20,70,60,.92)';
+          ctx.strokeStyle = heat ? 'rgba(140,255,214,' + (0.7 + heat * 0.3) + ')' : 'rgba(90,230,190,.7)';
+          if (heat) {
+            ctx.shadowColor = 'rgba(120,255,214,' + (heat * 0.8) + ')';
+            ctx.shadowBlur = 14 * heat;
+          }
         }
         ctx.fill();
+        ctx.shadowBlur = 0;
         ctx.lineWidth = 1.3;
         ctx.stroke();
 

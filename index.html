@@ -11,10 +11,10 @@
 <body>
 
 <header>
-  <button class="hbtn" id="btn-sidebar" title="Show lessons">☰</button>
+  <button class="hbtn" id="btn-sidebar" title="Show or hide the lessons panel (Ctrl+B)">☰</button>
   <div class="logo">
     <span class="bot">🤖</span>
-    <span><b>ROS 2</b> Academy<br><small>zero → robot programmer <em id="app-version"></em></small></span>
+    <span><b>ROS 2</b><span class="wordmark"> Academy</span><br><small>zero → robot programmer <em id="app-version"></em></small></span>
   </div>
 
   <div class="hspace"></div>
@@ -27,10 +27,11 @@
   <div id="badges"></div>
 
   <div id="mode-toggle" title="Same lesson, two ways of explaining it">
-    <button data-mode="kid" class="on">🧒 Simple</button>
-    <button data-mode="pro">🎓 Pro</button>
+    <button data-mode="kid" class="on">🧒<span class="mlabel"> Simple</span></button>
+    <button data-mode="pro">🎓<span class="mlabel"> Pro</span></button>
   </div>
 
+  <button class="hbtn" id="btn-focus" title="Reading mode: hide the lessons and make the explanations big (Ctrl+E)">📖 Read</button>
   <button class="hbtn" id="btn-backup" title="Save your files and progress to a file you can keep">💾 Save</button>
   <button class="hbtn" id="btn-restoreb" title="Load work you saved earlier">📂 Load</button>
   <a class="hbtn" id="btn-cheat" href="cheatsheet.html" target="_blank" rel="noopener" title="A printable one-page command reference">🖨️ Cheat sheet</a>
@@ -61,6 +62,7 @@
       <div class="lnav">
         <button id="lesson-prev">← Back</button>
         <button id="lesson-next">Next lesson →</button>
+        <button id="lesson-hide" title="Hide this panel (Ctrl+B)">⇤</button>
       </div>
       </div>
 
@@ -76,6 +78,9 @@
     </div>
   </aside>
 
+  <div class="gutter col" data-gutter="lessons" tabindex="0" role="separator"
+       aria-orientation="vertical" aria-label="resize the lessons panel" title="drag to resize · double-click to reset"></div>
+
   <!-- ============ TERMINAL ============ -->
   <section id="centre" class="app-window" data-window="centre">
     <div class="windowbar">
@@ -88,7 +93,7 @@
       <div id="terminal">
       <div class="termbar">
         <span class="dots"><i></i><i></i><i></i></span>
-        <span class="ttitle">student@ros2 — bash — your pretend Linux computer</span>
+        <span class="ttitle">student@ros2 — bash<span class="long"> — your pretend Linux computer</span></span>
       </div>
 
       <div id="term-scroll"><div id="term-out"></div></div>
@@ -106,6 +111,8 @@
         <button id="term-stop">⏹ stop</button>
       </div>
 
+      <div id="lesson-chips"></div>
+
       <div id="quickbar">
         <button data-cmd="__ctrlc" class="danger">Ctrl+C</button>
         <button data-cmd="help">help</button>
@@ -122,31 +129,28 @@
       </div>
       </div>
 
-      <div id="explain">
-      <div class="ehead"><span class="dot"></span> What just happened?</div>
+    <div class="gutter row" data-gutter="explain" tabindex="0" role="separator"
+         aria-orientation="horizontal" aria-label="resize the explanation panel" title="drag to resize · double-click to reset"></div>
+
+    <div id="explain">
+      <div class="ehead">
+        <span class="dot"></span> What just happened?
+        <button id="explain-bigger" title="make this bigger / smaller">⤢</button>
+      </div>
       <div id="explain-feed"></div>
       </div>
     </div>
   </section>
 
-  <!-- ============ LIVE VIEWS ============ -->
-  <section id="views" class="app-window" data-window="views">
-    <div class="windowbar">
-      <span class="window-grip" aria-hidden="true">⋮⋮</span>
-      <strong>Live views</strong>
-      <span class="window-purpose">inspect files, code, graph, robot</span>
-      <button class="window-btn" data-window-action="minimize" title="Minimize live views">—</button>
-    </div>
-    <div class="window-content">
-      <div id="view-tabs">
-      <button data-panel="files" class="on">📁 Files</button>
-      <button data-panel="editor">📝 Editor</button>
-      <button data-panel="graph">🕸️ Graph</button>
-      <button data-panel="robot">🐢 Robot</button>
-      <button data-panel="inspect">📊 Inspect</button>
-      </div>
+  <div class="gutter col" data-gutter="views" tabindex="0" role="separator"
+       aria-orientation="vertical" aria-label="resize the live views panel" title="drag to resize · double-click to reset"></div>
 
-      <div class="panels">
+  <!-- ============ LIVE VIEWS ============ -->
+  <section id="views">
+
+    <div class="pane" id="pane-a">
+      <div class="panetabs" id="tabs-a"></div>
+      <div class="panebody" id="body-a">
 
       <!-- Files -->
       <div class="panel on" id="panel-files">
@@ -194,6 +198,10 @@
           <button class="down" data-dir="down" title="backward">▼</button>
           <button class="right" data-dir="right" title="turn right">▶</button>
         </div>
+        <div id="sim-wire">
+          <div class="wtitle">the message your press just sent</div>
+          <div id="sim-wire-body"><span class="widle">press a button, or an arrow key, to see it</span></div>
+        </div>
         <div id="sim-hint"></div>
       </div>
 
@@ -207,9 +215,20 @@
 
       </div>
     </div>
+
+    <div class="gutter row" id="gutter-split" data-gutter="split" tabindex="0" role="separator"
+         aria-orientation="horizontal" aria-label="resize the split" title="drag to resize · double-click for 50/50"></div>
+
+    <div class="pane" id="pane-b">
+      <div class="panetabs" id="tabs-b"></div>
+      <div class="panebody" id="body-b"></div>
+    </div>
+
   </section>
 
 </main>
+
+<button id="lessons-peek" title="Show the lessons again (Ctrl+B)">📚<span>Lessons</span></button>
 
 <div id="confetti"></div>
 
@@ -220,6 +239,7 @@
 <script src="js/rosgraph.js"></script>
 <script src="js/programs.js"></script>
 <script src="js/analyze.js"></script>
+<script src="js/analyze_cpp.js"></script>
 <script src="js/highlight.js"></script>
 <script src="js/shell.js"></script>
 <script src="js/ros2cli.js"></script>
@@ -228,11 +248,15 @@
 <script src="js/window-manager.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/graph.js"></script>
+<script src="js/dock.js"></script>
+<script src="js/layout.js"></script>
 <script src="js/panels.js"></script>
 <script src="js/lessons.js"></script>
 <script src="js/lessons2.js"></script>
+<script src="js/lessons3.js"></script>
 <script src="js/challenges.js"></script>
 <script src="js/backup.js"></script>
+<script src="js/mobile.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

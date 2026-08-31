@@ -14,11 +14,8 @@
     expanded: Object.create(null),
 
     init() {
-      this.tabs = U.$('#view-tabs');
-      this.tabs.addEventListener('click', (e) => {
-        const b = e.target.closest('button[data-panel]');
-        if (b) this.show(b.getAttribute('data-panel'), true);
-      });
+      global.Dock.init();
+      global.Layout.init();
 
       const af = U.$('#auto-follow');
       af.checked = U.Store.get('ros2academy.autofollow', true);
@@ -30,6 +27,10 @@
 
       Bus.on('panel:show', (p) => this.show(p.panel, true));
       Bus.on('panel:suggest', (p) => { if (this.autoFollow) this.show(p.panel); });
+      Bus.on('dock:applied', () => {
+        if (global.Dock.isVisible('inspect')) Inspector.render();
+        if (global.Dock.isVisible('files')) Files.render();
+      });
 
       this.expanded[VFS.HOME] = true;
       this.expanded['/'] = true;
@@ -42,21 +43,28 @@
       global.Sim.init(U.$('#panel-robot'));
       global.Graph.init(U.$('#panel-graph'));
 
-      this.show(this.current, true);
+      global.Dock.apply();
     },
 
+    /** Is this panel on screen right now, in either pane? */
+    isVisible(name) { return global.Dock.isVisible(name); },
+
+    /**
+     * Show a panel. If it is already up in either pane, leave the
+     * layout alone — stealing a pane the learner arranged on purpose
+     * is the fastest way to make a split feel broken.
+     */
     show(name, user) {
       if (!U.$('#panel-' + name)) return;
+      const Dock = global.Dock;
+      if (Dock.isVisible(name)) {
+        if (name === 'inspect') Inspector.render();
+        if (name === 'files') Files.render();
+        return;
+      }
+      /* suggestions always land in pane A; pane B belongs to the learner */
+      Dock.show('a', name, !!user);
       this.current = name;
-      U.$$('#view-tabs button').forEach((b) => {
-        b.classList.toggle('on', b.getAttribute('data-panel') === name);
-      });
-      U.$$('.panel').forEach((p) => p.classList.toggle('on', p.id === 'panel-' + name));
-      if (name === 'robot') { global.Sim.resize(); global.Sim.updateHint(); }
-      if (name === 'graph') { global.Graph.resize(); global.Graph.dirty = true; }
-      if (name === 'inspect') Inspector.render();
-      if (name === 'files') Files.render();
-      void user;
     }
   };
 
@@ -91,7 +99,7 @@
         if (c.action !== 'delete') this.flash[c.path] = Date.now();
       }
       this.render();
-      if (c.action !== 'delete' && !generated && Panels.autoFollow && Panels.current !== 'editor') Panels.show('files');
+      if (c.action !== 'delete' && !generated && Panels.autoFollow && !Panels.isVisible('editor')) Panels.show('files');
     },
 
     render() {
@@ -131,7 +139,7 @@
         el('span', { class: 'tn', text: name + (isDir ? '/' : '') }),
         isDir ? el('button', {
           class: 'tcd', title: 'cd into this folder',
-          onClick: (e) => { e.stopPropagation(); Bus.emit('term:type', { text: 'cd ' + VFS.pretty(path) }); }
+          onClick: (e) => { e.stopPropagation(); Bus.emit('term:type', { text: 'cd ' + VFS.pretty(path), instant: true }); }
         }, ['cd']) : null
       ]);
       wrap.appendChild(row);
@@ -295,8 +303,8 @@
   const Inspector = {
     init() {
       this.root = U.$('#inspect-body');
-      setInterval(() => { if (Panels.current === 'inspect') this.render(); }, 600);
-      Bus.on('graph:dirty', () => { if (Panels.current === 'inspect') this.render(); });
+      setInterval(() => { if (Panels.isVisible('inspect')) this.render(); }, 600);
+      Bus.on('graph:dirty', () => { if (Panels.isVisible('inspect')) this.render(); });
       this.render();
     },
 
